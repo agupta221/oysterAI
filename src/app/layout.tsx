@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
 export const metadata: Metadata = {
   title: "OysterAI",
-  description: "AI-powered learning platform",
+  description: "Personalized learning, limitless potential.",
 }
 
 export default function RootLayout({

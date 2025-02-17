@@ -4,25 +4,46 @@ import { useState } from "react"
 import { ChevronLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import Sidebar from "@/components/sidebar"
+import Sidebar, { ActiveSection } from "@/components/sidebar"
 import MainContent from "@/components/main-content"
+import type { Course } from "@/components/ui/course-tile"
+import type { Topic } from "@/lib/openai"
+import type { Resource } from "@/lib/perplexity"
+
+interface TopicWithResources extends Topic {
+  resources?: Resource[];
+}
 
 export default function CourseLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [activeSection, setActiveSection] = useState<ActiveSection>(null)
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
+  const [selectedTopic, setSelectedTopic] = useState<TopicWithResources | null>(null)
+
+  const handleCourseDeselect = () => {
+    setSelectedCourse(null)
+    setSelectedTopic(null)
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-secondary/30">
       {/* Sidebar with toggle button container */}
-      <div className="relative flex-shrink-0">
+      <div className="relative flex-shrink-0 h-full">
         {/* Sidebar */}
         <aside
           className={cn(
-            "relative overflow-hidden transition-all duration-300",
+            "h-full relative overflow-hidden transition-all duration-300",
             sidebarOpen ? "w-80" : "w-0"
           )}
         >
-          <div className="h-full w-80 border-r bg-background">
-            <Sidebar />
+          <div className="absolute inset-0 w-80 border-r bg-background">
+            <Sidebar 
+              activeSection={activeSection}
+              onSectionClick={setActiveSection}
+              selectedCourse={selectedCourse}
+              onCourseDeselect={handleCourseDeselect}
+              onTopicClick={setSelectedTopic}
+            />
           </div>
         </aside>
 
@@ -47,7 +68,14 @@ export default function CourseLayout() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        <MainContent />
+        <MainContent 
+          activeSection={activeSection} 
+          setActiveSection={setActiveSection}
+          selectedCourse={selectedCourse}
+          setSelectedCourse={setSelectedCourse}
+          selectedTopic={selectedTopic}
+          setSelectedTopic={setSelectedTopic}
+        />
       </main>
     </div>
   )

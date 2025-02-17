@@ -1,40 +1,78 @@
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Book, Clock, GraduationCap, Layout, Settings, Target } from "lucide-react"
+import { Book, Clock, GraduationCap, Layout, Settings, Target, ArrowLeft } from "lucide-react"
+import { cn } from "@/lib/utils"
+import type { Course } from "@/components/ui/course-tile"
+import { Syllabus } from "@/components/ui/syllabus"
+import { Button } from "@/components/ui/button"
+import type { Topic } from "@/lib/openai"
+import type { Resource } from "@/lib/perplexity"
+
+interface TopicWithResources extends Topic {
+  resources?: Resource[];
+}
+
+export type ActiveSection = "build" | "courses" | "preferences" | null
+
+interface SidebarProps {
+  onSectionClick: (section: ActiveSection) => void;
+  activeSection: ActiveSection;
+  selectedCourse: Course | null;
+  onCourseDeselect: () => void;
+  onTopicClick: (topic: TopicWithResources) => void;
+}
 
 const sidebarSections = [
   {
-    title: "Course Structure",
-    description: "Define your learning path",
+    id: "build" as const,
+    title: "Build A Course",
+    description: "Define your learning goals",
     icon: Layout,
   },
   {
-    title: "Learning Goals",
-    description: "Set your objectives",
+    id: "courses" as const,
+    title: "Your Courses",
+    description: "Explore your creations",
     icon: Target,
   },
   {
-    title: "Time Commitment",
-    description: "Plan your schedule",
-    icon: Clock,
-  },
-  {
-    title: "Topics",
-    description: "Choose your subjects",
-    icon: Book,
-  },
-  {
-    title: "Difficulty Level",
-    description: "Set your challenge",
-    icon: GraduationCap,
-  },
-  {
+    id: "preferences" as const,
     title: "Preferences",
     description: "Customize your experience",
     icon: Settings,
   },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ onSectionClick, activeSection, selectedCourse, onCourseDeselect, onTopicClick }: SidebarProps) {
+  const handleBackClick = () => {
+    onCourseDeselect()
+    onSectionClick("courses")
+  }
+
+  if (selectedCourse) {
+    return (
+      <div className="h-full overflow-y-auto p-4 bg-card">
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            className="mb-6 -ml-2 text-muted-foreground hover:text-primary"
+            onClick={handleBackClick}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Go back to your courses
+          </Button>
+          
+          <h1 className="text-xl font-semibold text-primary">
+            {selectedCourse.title}
+          </h1>
+        </div>
+        <Syllabus 
+          sections={selectedCourse.syllabus.sections} 
+          onTopicClick={onTopicClick}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="h-full overflow-y-auto p-4 bg-card">
       <div className="mb-8">
@@ -45,13 +83,19 @@ export default function Sidebar() {
           </div>
           <h1 className="text-2xl font-bold text-primary">Oyster</h1>
         </div>
-        <p className="text-sm text-muted-foreground">AI-Powered Course Builder</p>
+        <p className="text-sm text-muted-foreground">Personalized Learning, Limitless Potential</p>
       </div>
       <div className="space-y-2">
         {sidebarSections.map((section) => (
           <Card
             key={section.title}
-            className="cursor-pointer border-transparent transition-all duration-200 hover:border-primary/20 hover:bg-primary/5"
+            className={cn(
+              "cursor-pointer border-transparent transition-all duration-200",
+              activeSection === section.id 
+                ? "border-primary bg-primary/5" 
+                : "hover:border-primary/20 hover:bg-primary/5"
+            )}
+            onClick={() => onSectionClick(section.id)}
           >
             <CardHeader className="p-4">
               <div className="flex items-center gap-4">
