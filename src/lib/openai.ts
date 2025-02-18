@@ -5,6 +5,7 @@ import { z } from "zod";
 export interface Topic {
   title: string;
   description?: string;
+  isCompleted?: boolean;
 }
 
 export interface Subsection {

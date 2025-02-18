@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { ActiveSection } from "./sidebar"
 import { Button } from "@/components/ui/button"
-import { Search, Sparkles, MessageSquare, Wand2, Send, User, X, ArrowLeft, Play, FileText, BookOpen, Pause, Volume2 } from "lucide-react"
+import { Search, Sparkles, MessageSquare, Wand2, Send, User, X, ArrowLeft, Play, FileText, BookOpen, Pause, Volume2, CheckCircle } from "lucide-react"
 import { Syllabus } from "@/components/ui/syllabus"
 import { LoadingOverlay } from "@/components/ui/loading-overlay"
 import { cn } from "@/lib/utils"
@@ -212,12 +212,16 @@ export default function MainContent({
   };
 
   const generateCourse = async (syllabus: SyllabusType) => {
+    if (!syllabus || !syllabus.sections || syllabus.sections.length === 0) {
+      return;
+    }
+
     // Create a new course with generating state
     const courseId = uuidv4()
     const newCourse: Course = {
       id: courseId,
-      title: syllabus.sections[0].title,
-      description: syllabus.sections[0].description,
+      title: syllabus.sections[0].title || "Untitled Course",
+      description: syllabus.sections[0].description || "No description available",
       syllabus,
       createdAt: new Date(),
       imageUrl: "",
@@ -232,8 +236,6 @@ export default function MainContent({
       const userRequest = [...messages]
         .reverse()
         .find(m => m.type === 'user')?.content || "";
-
-      console.log("Starting resource generation for course:", newCourse.title);
       
       // Fetch resources for all topics in parallel and generate summary and audio
       const { syllabus: enrichedSyllabus, summary, audioUrl } = await enrichSyllabusWithResources(syllabus, userRequest);
@@ -251,11 +253,7 @@ export default function MainContent({
             }
           : course
       ))
-
-      console.log("Course generation completed successfully!");
     } catch (error) {
-      console.error("Error generating course resources:", error);
-      
       // Update the course to show it's no longer generating, but keep the original syllabus
       setCourses(prev => prev.map(course => 
         course.id === courseId 
@@ -274,7 +272,46 @@ export default function MainContent({
       <div className="h-full p-8 overflow-y-auto">
         {selectedTopic ? (
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-primary mb-2">{selectedTopic.title}</h2>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-2xl font-bold text-primary">{selectedTopic.title}</h2>
+              <Button
+                variant={selectedTopic.isCompleted ? "default" : "outline"}
+                className="gap-2"
+                onClick={() => {
+                  const updatedTopic = {
+                    ...selectedTopic,
+                    isCompleted: !selectedTopic.isCompleted
+                  };
+                  setSelectedTopic(updatedTopic);
+                  
+                  // Update the course's syllabus with the new completion status
+                  if (selectedCourse) {
+                    const updatedCourse = {
+                      ...selectedCourse,
+                      syllabus: {
+                        ...selectedCourse.syllabus,
+                        sections: selectedCourse.syllabus.sections.map(section => ({
+                          ...section,
+                          subsections: section.subsections.map(subsection => ({
+                            ...subsection,
+                            topics: subsection.topics.map(topic => 
+                              topic.title === selectedTopic.title ? updatedTopic : topic
+                            )
+                          }))
+                        }))
+                      }
+                    };
+                    setSelectedCourse(updatedCourse);
+                  }
+                }}
+              >
+                <CheckCircle className={cn(
+                  "h-4 w-4",
+                  selectedTopic.isCompleted ? "fill-primary-foreground" : "fill-none"
+                )} />
+                {selectedTopic.isCompleted ? "Completed" : "Mark as Completed"}
+              </Button>
+            </div>
             {selectedTopic.description && (
               <p className="text-muted-foreground mb-8">{selectedTopic.description}</p>
             )}

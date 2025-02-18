@@ -1,4 +1,4 @@
-import { ChevronRight, Plus, Minus } from "lucide-react"
+import { ChevronRight, Plus, Minus, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
 import {
@@ -29,7 +29,7 @@ interface SyllabusProps {
   onTopicClick?: (topic: TopicWithResources) => void
 }
 
-export function Syllabus({ sections, onTopicClick }: SyllabusProps) {
+export function Syllabus({ sections = [], onTopicClick }: SyllabusProps) {
   const [expandedSections, setExpandedSections] = useState<number[]>([0])
   const [expandedSubsections, setExpandedSubsections] = useState<string[]>([])
 
@@ -48,6 +48,14 @@ export function Syllabus({ sections, onTopicClick }: SyllabusProps) {
         ? prev.filter(k => k !== key)
         : [...prev, key]
     )
+  }
+
+  if (!sections || sections.length === 0) {
+    return (
+      <div className="text-center p-4 text-muted-foreground">
+        No sections available
+      </div>
+    );
   }
 
   return (
@@ -117,7 +125,16 @@ export function Syllabus({ sections, onTopicClick }: SyllabusProps) {
                                       onClick={() => onTopicClick?.(topic)}
                                       className="w-full p-2 text-sm text-left bg-primary/5 hover:bg-primary/10 rounded-md text-foreground/80 hover:text-primary transition-colors"
                                     >
-                                      {topic.title}
+                                      <div className="flex items-center gap-2">
+                                        {topic.isCompleted && (
+                                          <CheckCircle className="h-4 w-4 text-primary fill-primary" />
+                                        )}
+                                        <span className={cn(
+                                          topic.isCompleted && "text-primary"
+                                        )}>
+                                          {topic.title}
+                                        </span>
+                                      </div>
                                     </button>
                                   </TooltipTrigger>
                                   {topic.description && (

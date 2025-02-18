@@ -65,10 +65,16 @@ export default function Sidebar({ onSectionClick, activeSection, selectedCourse,
             {selectedCourse.title}
           </h1>
         </div>
-        <Syllabus 
-          sections={selectedCourse.syllabus.sections} 
-          onTopicClick={onTopicClick}
-        />
+        {selectedCourse.syllabus ? (
+          <Syllabus 
+            sections={selectedCourse.syllabus.sections} 
+            onTopicClick={onTopicClick}
+          />
+        ) : (
+          <div className="text-center p-4 text-muted-foreground">
+            Course content is not available
+          </div>
+        )}
       </div>
     )
   }
