@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { ActiveSection } from "./sidebar"
 import { Button } from "@/components/ui/button"
-import { Search, Sparkles, MessageSquare, Wand2, Send, User, X, ArrowLeft, Play, FileText, BookOpen } from "lucide-react"
+import { Search, Sparkles, MessageSquare, Wand2, Send, User, X, ArrowLeft, Play, FileText, BookOpen, Pause, Volume2 } from "lucide-react"
 import { Syllabus } from "@/components/ui/syllabus"
 import { LoadingOverlay } from "@/components/ui/loading-overlay"
 import { cn } from "@/lib/utils"
@@ -14,6 +14,7 @@ import type { Course } from "@/components/ui/course-tile"
 import { enrichSyllabusWithResources } from "@/lib/course-generator"
 import type { Resource } from "@/lib/perplexity"
 import type { Topic } from "@/lib/openai"
+import { AudioPlayer } from "@/components/ui/audio-player"
 
 const courseSuggestions = [
   {
@@ -234,15 +235,17 @@ export default function MainContent({
 
       console.log("Starting resource generation for course:", newCourse.title);
       
-      // Fetch resources for all topics in parallel
-      const enrichedSyllabus = await enrichSyllabusWithResources(syllabus, userRequest);
+      // Fetch resources for all topics in parallel and generate summary and audio
+      const { syllabus: enrichedSyllabus, summary, audioUrl } = await enrichSyllabusWithResources(syllabus, userRequest);
 
-      // Update the course with the enriched syllabus
+      // Update the course with the enriched syllabus, summary, and audio
       setCourses(prev => prev.map(course => 
         course.id === courseId 
           ? {
               ...course,
               syllabus: enrichedSyllabus,
+              summary,
+              audioUrl,
               isGenerating: false,
               imageUrl: "https://source.unsplash.com/random/800x600/?education"
             }
@@ -394,6 +397,11 @@ export default function MainContent({
               <h1 className="text-3xl font-bold tracking-tight text-primary mb-4">
                 Welcome to Your Learning Journey
               </h1>
+              {selectedCourse.summary && selectedCourse.audioUrl && (
+                <div className="mb-8">
+                  <AudioPlayer audioUrl={selectedCourse.audioUrl} />
+                </div>
+              )}
               <div className="space-y-4 text-muted-foreground">
                 <p className="text-lg">
                   Your course curriculum is now available in the sidebar. Here's how to get started:

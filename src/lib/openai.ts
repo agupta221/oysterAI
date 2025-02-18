@@ -74,6 +74,22 @@ Along with the modified syllabus, provide a 2-3 line description explaining what
 
 The syllabus output should be a complete syllabus that can stand on its own, not just the modifications.`;
 
+const SUMMARY_PROMPT = `You are an enthusiastic and engaging course creator. 
+Your task is to create an exciting and comprehensive overview of a course based on its syllabus. The summary should be 5-6 sentences and should start with a greeting. 
+The text should read like a story, with a beginning, middle, and end. It should be engaging and interesting. Don't include any other text than the summary. Don't include any asterisks or anything that a voice to text engine would have trouble reading.
+
+
+Your summary should:
+1. Be upbeat and motivating
+2. Highlight the key learning outcomes
+3. Showcase the progression of learning through the sections at a very high level
+4. Emphasize the practical skills and knowledge students will gain
+5. Use friendly, conversational language
+6. Get students excited about their learning journey
+7. Do not exceed more than 6 sentences
+
+Focus on making the student feel empowered and eager to begin their learning adventure!`;
+
 export async function generateSyllabus(userInput: string): Promise<SyllabusResponse> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -134,4 +150,29 @@ export async function modifySyllabus(
   }
 
   return parsed;
+}
+
+export async function generateCourseSummary(syllabus: Syllabus): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing OPENAI_API_KEY environment variable");
+  }
+
+  const openai = new OpenAI({
+    apiKey: apiKey,
+  });
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4-0125-preview",
+    messages: [
+      { role: "system", content: SUMMARY_PROMPT },
+      { 
+        role: "user", 
+        content: `Please create an exciting course overview based on this syllabus: ${JSON.stringify(syllabus, null, 2)}`
+      },
+    ],
+    temperature: 0.7,
+  });
+
+  return completion.choices[0].message.content || "Failed to generate course summary";
 } 

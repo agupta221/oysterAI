@@ -14,7 +14,7 @@ const ResourceResponseSchema = z.object({
 });
 
 export async function fetchResourcesForTopic(
-  topic: string,
+  topicTitle: string,
   subsectionTitle: string,
   userRequest: string
 ): Promise<Resource[]> {
@@ -22,11 +22,6 @@ export async function fetchResourcesForTopic(
   if (!apiKey) {
     throw new Error("Missing NEXT_PUBLIC_PERPLEXITY_API_KEY environment variable");
   }
-
-  console.log("\n=== Perplexity API Call ===");
-  console.log("Topic:", topic);
-  console.log("Subsection:", subsectionTitle);
-  console.log("User Request:", userRequest);
 
   const systemPrompt = `You are an expert at finding high-quality learning resources. Your task is to find 3-5 relevant resources for learning about a specific topic. At least 2 of these should be YouTube videos. The remaining resources can be articles, academic papers, or other educational content.
 
@@ -63,17 +58,16 @@ Requirements:
 
   const userPrompt = `User's learning goal: ${userRequest}
 Section being studied: ${subsectionTitle}
-Specific topic: ${topic}
+Specific topic: ${topicTitle}
 
 Provide 3-5 high-quality learning resources for this topic as a JSON array. Remember to include at least 2 YouTube videos and ensure your response is valid JSON.`;
 
   try {
-    console.log("Making Perplexity API request...");
     const response = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: "sonar-pro",
@@ -86,19 +80,14 @@ Provide 3-5 high-quality learning resources for this topic as a JSON array. Reme
     });
 
     if (!response.ok) {
-      console.error("Perplexity API Error:", response.status, response.statusText);
       throw new Error(`Perplexity API error: ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log("Perplexity API Response:", data);
     const content = data.choices[0].message.content;
     
-    // Parse the JSON response
-    console.log("Parsing response content:", content);
     let parsedContent;
     try {
-      // Try to extract JSON if it's wrapped in text
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         parsedContent = JSON.parse(jsonMatch[0]);
@@ -106,20 +95,12 @@ Provide 3-5 high-quality learning resources for this topic as a JSON array. Reme
         parsedContent = JSON.parse(content);
       }
     } catch (parseError) {
-      console.error("Failed to parse JSON response:", content);
       throw new Error("Invalid JSON response from Perplexity API");
     }
 
     const validated = ResourceResponseSchema.parse({ resources: parsedContent });
-    
-    console.log(`Successfully found ${validated.resources.length} resources for topic "${topic}"`);
-    console.log("Resources:", JSON.stringify(validated.resources, null, 2));
-    console.log("=== End Perplexity API Call ===\n");
-    
     return validated.resources;
   } catch (error) {
-    console.error("Error in Perplexity API call:", error);
-    console.error("=== End Perplexity API Call (with error) ===\n");
     throw error;
   }
 } 

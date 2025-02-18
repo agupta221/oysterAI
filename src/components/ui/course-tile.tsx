@@ -13,6 +13,8 @@ export interface Course {
   createdAt: Date
   imageUrl: string
   isGenerating?: boolean
+  summary?: string
+  audioUrl?: string
 }
 
 interface CourseTileProps {
