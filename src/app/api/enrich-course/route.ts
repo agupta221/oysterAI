@@ -56,7 +56,6 @@ export async function POST(request: Request) {
                         subsectionTitle: subsection.title,
                         userRequest,
                       }),
-                      cache: 'no-store'
                     });
 
                     if (!response.ok) {
