@@ -46,16 +46,17 @@ export async function POST(request: Request) {
               const enrichedTopics = await Promise.all(
                 subsection.topics.map(async (topic: Topic) => {
                   try {
-                    const response = await fetch(`${baseUrl}/api/perplexity`, {
-                      method: 'POST',
+                    const queryParams = new URLSearchParams({
+                      topicTitle: topic.title,
+                      subsectionTitle: subsection.title,
+                      userRequest,
+                    }).toString();
+
+                    const response = await fetch(`${baseUrl}/api/perplexity?${queryParams}`, {
+                      method: 'GET',
                       headers: {
                         'Content-Type': 'application/json',
                       },
-                      body: JSON.stringify({
-                        topicTitle: topic.title,
-                        subsectionTitle: subsection.title,
-                        userRequest,
-                      }),
                     });
 
                     if (!response.ok) {
