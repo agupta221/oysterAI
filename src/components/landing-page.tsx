@@ -1,3 +1,5 @@
+'use client'
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { 
@@ -8,217 +10,543 @@ import {
   Github,
   Twitter,
   Linkedin,
-  Mail
+  Mail,
+  ChevronRight,
+  ExternalLink,
+  ArrowRight
 } from "lucide-react"
+import { motion } from "framer-motion"
+import { useEffect, useState } from "react"
 
 export function LandingPage() {
+  const [scrollY, setScrollY] = useState(0)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY)
+    }
+    
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  const fadeIn = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.8 }
+  }
+
+  const staggerChildren = {
+    animate: {
+      transition: {
+        staggerChildren: 0.2
+      }
+    }
+  }
+
   return (
-    <div className="min-h-screen">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-white overflow-hidden">
+      {/* Navigation - Glass Effect */}
+      <nav 
+        className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-white/90 border-b border-neutral-200/50"
+        style={{
+          boxShadow: scrollY > 10 ? '0 4px 30px rgba(0, 0, 0, 0.05)' : 'none'
+        }}
+      >
+        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <div className="w-6 h-6 rounded-full bg-primary/80 ring-4 ring-primary/20" />
+          <motion.div 
+            className="flex items-center gap-3"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center relative overflow-hidden group">
+              <div className="w-6 h-6 rounded-full bg-primary/80 ring-4 ring-primary/20 z-10 transition-all duration-500 group-hover:scale-110" />
+              <div className="absolute inset-0 bg-gradient-radial from-primary/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             </div>
             <span className="text-2xl font-bold text-primary">Oyster</span>
-          </div>
+          </motion.div>
+
+          {/* Nav Links - Added */}
+          <motion.div 
+            className="hidden md:flex items-center gap-8"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <Link 
+              href="#features" 
+              className="text-sm font-medium text-neutral-800 hover:text-primary transition-colors"
+            >
+              Features
+            </Link>
+            <Link 
+              href="#courses" 
+              className="text-sm font-medium text-neutral-800 hover:text-primary transition-colors"
+            >
+              Courses
+            </Link>
+            <Link 
+              href="#" 
+              className="text-sm font-medium text-neutral-800 hover:text-primary transition-colors"
+            >
+              Pricing
+            </Link>
+            <Link 
+              href="#" 
+              className="text-sm font-medium text-neutral-800 hover:text-primary transition-colors"
+            >
+              About
+            </Link>
+          </motion.div>
 
           {/* Auth Button */}
-          <Link href="/app">
-            <Button>Sign In</Button>
-          </Link>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Link href="/app">
+              <Button className="rounded-full px-6 font-medium">
+                Sign In <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </Link>
+          </motion.div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-36 pb-28 px-4">
-        <div className="container mx-auto text-center">
-          <div className="max-w-3xl mx-auto mb-12">
-            <h1 className="text-5xl font-bold tracking-tight mb-8 bg-gradient-to-r from-primary/80 to-primary bg-clip-text text-transparent">
-              Unlock Your Learning Potential with Oyster
+      <section className="relative pt-40 pb-32">
+        {/* Abstract Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-[30%] -left-[10%] w-[50%] h-[70%] rounded-full bg-gradient-to-br from-blue-500/10 to-transparent blur-3xl" />
+          <div className="absolute top-[20%] -right-[10%] w-[40%] h-[60%] rounded-full bg-gradient-to-bl from-purple-500/10 to-transparent blur-3xl" />
+          <div className="absolute bottom-[10%] left-[15%] w-[30%] h-[40%] rounded-full bg-gradient-to-tr from-primary/10 to-transparent blur-3xl" />
+        </div>
+        
+        <div className="container mx-auto px-6 relative">
+          <motion.div 
+            className="max-w-4xl mx-auto mb-20 text-center"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <div className="inline-flex items-center px-3 py-1 mb-6 rounded-full bg-primary/10 text-primary text-sm font-medium">
+              <span className="mr-2">🚀</span> Redefining personal education
+            </div>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-8 leading-[1.1]">
+              <span className="bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent">
+                Unlock Your Learning Potential
+              </span>
+              <br />with Oyster
             </h1>
-            <p className="text-xl text-muted-foreground mb-8">
+            <p className="text-xl md:text-2xl text-neutral-600 dark:text-neutral-300 mb-10 max-w-3xl mx-auto leading-relaxed">
               Create personalized courses, discover curated resources, and master any subject with our AI-powered education platform.
             </p>
-            <Link href="/app">
-              <Button size="lg" className="px-8">
-                Start Learning Now
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/app">
+                <Button size="lg" className="px-8 h-14 rounded-full text-base shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/20 transition-all group">
+                  Start Learning Now
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Button size="lg" variant="outline" className="px-8 h-14 rounded-full text-base border-2">
+                Watch Demo
               </Button>
-            </Link>
-          </div>
+            </div>
+          </motion.div>
 
-          {/* Hero Visual */}
-          <div className="relative w-48 h-48 mx-auto">
-            <div className="absolute inset-0 bg-primary/10 rounded-full">
-              <div className="absolute inset-8 bg-primary/20 rounded-full" />
+          {/* Hero Visual - More Complex Interactive Pearl */}
+          <motion.div 
+            className="relative w-72 h-72 mx-auto"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ 
+              type: "spring",
+              stiffness: 100,
+              delay: 0.2,
+              duration: 0.8 
+            }}
+          >
+            <div className="absolute inset-0 animate-pulse-slow">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-purple-500/40 rounded-full blur-3xl" />
             </div>
-            <div className="absolute inset-0 bg-primary/10 rounded-full">
-              <div className="absolute inset-12 bg-primary/20 rounded-full" />
+            
+            {/* Outer Shells */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-purple-400/10 rounded-full">
+              <div className="absolute inset-8 bg-gradient-to-tr from-primary/20 to-purple-500/20 rounded-full" />
             </div>
+            <div className="absolute inset-0 animate-spin-very-slow bg-gradient-to-br from-primary/10 to-purple-400/10 rounded-full opacity-70">
+              <div className="absolute inset-12 bg-gradient-to-tr from-primary/20 to-purple-500/20 rounded-full" />
+            </div>
+            
+            {/* Pearl with Glow Effect */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-16 h-16 rounded-full bg-primary/80 ring-8 ring-primary/20" />
+              <div className="relative w-24 h-24">
+                <div className="absolute inset-0 bg-white dark:bg-neutral-900 rounded-full opacity-70 blur-md animate-pulse-slow" />
+                <div className="relative w-full h-full rounded-full bg-gradient-to-br from-white to-primary/80 dark:from-primary/80 dark:to-purple-600 backdrop-blur-sm shadow-xl animate-float">
+                  <div className="absolute top-1 left-3 w-6 h-2 bg-white/80 rounded-full rotate-[30deg] blur-[1px]" />
+                </div>
+              </div>
             </div>
-          </div>
+            
+            {/* Particle Effects */}
+            <div className="absolute inset-0">
+              {[...Array(8)].map((_, i) => (
+                <div 
+                  key={i}
+                  className="absolute w-2 h-2 rounded-full bg-primary/80"
+                  style={{
+                    top: `${20 + Math.random() * 60}%`,
+                    left: `${20 + Math.random() * 60}%`,
+                    opacity: 0.7,
+                    animation: `float ${3 + Math.random() * 4}s infinite ease-in-out ${Math.random() * 2}s`
+                  }}
+                />
+              ))}
+            </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-24 bg-primary/5">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-16">
-            Why Choose Oyster?
-          </h2>
+      <section id="features" className="py-32 bg-gradient-to-b from-white to-blue-50 relative">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-b from-white to-transparent" />
+          <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-[0.3]" />
+        </div>
+        
+        <div className="container mx-auto px-6 relative">
+          <motion.div 
+            className="max-w-3xl mx-auto text-center mb-20"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <div className="inline-flex items-center px-3 py-1 mb-6 rounded-full bg-primary/10 text-primary text-sm font-medium">
+              <Sparkles className="mr-2 h-4 w-4" /> Powerful Features
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+              Why Choose Oyster?
+            </h2>
+            <p className="text-lg text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
+              Our AI-powered education platform transforms how you learn with personalized content and cutting-edge technology.
+            </p>
+          </motion.div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16"
+            variants={staggerChildren}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true }}
+          >
             {[
               {
                 icon: Sparkles,
                 title: "Personalized Courses",
-                description: "Intelligent course generation tailored to your goals and interests"
+                description: "Intelligent course generation tailored to your goals and interests with adaptive learning paths.",
+                color: "from-blue-500 to-indigo-600"
               },
               {
                 icon: Target,
                 title: "Learning Agents",
-                description: "AI agents to help you learn and answer your questions"
+                description: "AI agents that adapt to your learning style and help you master concepts at your own pace.",
+                color: "from-green-500 to-emerald-600"
               },
               {
                 icon: BookOpen,
-                title: "Curated Exercises & Activities",
-                description: "High-quality quizzes and exercises to test your knowledge"
+                title: "Curated Exercises",
+                description: "High-quality interactive quizzes and exercises that reinforce knowledge and improve retention.",
+                color: "from-amber-500 to-orange-600"
               },
               {
                 icon: Zap,
                 title: "Multi-Modal Learning",
-                description: "Instructive content that leverages audio, video and text to help you learn"
+                description: "Engaging content across audio, video, and text formats to suit all learning preferences.",
+                color: "from-purple-500 to-pink-600"
               }
             ].map((feature, index) => (
-              <div key={index} className="text-center p-6">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <feature.icon className="h-6 w-6 text-primary" />
+              <motion.div 
+                key={index} 
+                className="flex flex-col items-center text-center"
+                variants={fadeIn}
+              >
+                <div className="mb-6 relative group">
+                  <div className={`absolute inset-0 bg-gradient-to-r ${feature.color} rounded-full blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-700`} />
+                  <div className={`relative w-16 h-16 rounded-full bg-gradient-to-r ${feature.color} p-0.5`}>
+                    <div className="w-full h-full rounded-full bg-white dark:bg-neutral-900 flex items-center justify-center">
+                      <feature.icon className="h-7 w-7 text-white" />
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground">{feature.description}</p>
-              </div>
+                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
+                <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">{feature.description}</p>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Example Courses Section */}
-      <section className="py-24">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-6">
-            Courses Our Users Have Generated
-          </h2>
-          <p className="text-muted-foreground text-center mb-16 max-w-2xl mx-auto">
-            Discover the diverse range of courses created by our community. From technical skills to creative pursuits, the possibilities are endless.
-          </p>
+      <section id="courses" className="py-32 bg-white relative">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -bottom-[30%] -right-[10%] w-[50%] h-[70%] rounded-full bg-gradient-to-tl from-blue-500/10 to-transparent blur-3xl" />
+          <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-gradient-to-br from-purple-500/10 to-transparent blur-3xl" />
+        </div>
+        
+        <div className="container mx-auto px-6 relative">
+          <motion.div 
+            className="max-w-3xl mx-auto text-center mb-20"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <div className="inline-flex items-center px-3 py-1 mb-6 rounded-full bg-primary/10 text-primary text-sm font-medium">
+              <BookOpen className="mr-2 h-4 w-4" /> Learn Anything
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+              Courses Our Users Have Generated
+            </h2>
+            <p className="text-lg text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
+              Discover the diverse range of courses created by our community. From technical skills to creative pursuits, the possibilities are endless.
+            </p>
+          </motion.div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <motion.div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+            variants={staggerChildren}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true }}
+          >
             {[
               {
                 title: "Mobile App Development with Flutter",
                 prompt: "I am a senior in college studying computer science - I've heard a lot about app development but haven't tried it yet. Create a course that teaches me about Flutter and focus the content on building an app to help students meet new people on campus.",
-                topics: ["Flutter", "Dart", "UI Design", "Firebase"]
+                topics: ["Flutter", "Dart", "UI Design", "Firebase"],
+                color: "from-blue-500 to-cyan-400",
+                emoji: "📱"
               },
               {
                 title: "Machine Learning for Climate Science",
                 prompt: "I'm an environmental scientist looking to apply machine learning to climate data. I need a course that covers Python, data analysis, and ML techniques specifically for processing and analyzing climate datasets.",
-                topics: ["Python", "ML", "Data Analysis", "Climate Data"]
+                topics: ["Python", "ML", "Data Analysis", "Climate Data"],
+                color: "from-green-500 to-emerald-400",
+                emoji: "🌍"
               },
               {
                 title: "Game Development with Unity",
                 prompt: "I'm an artist with no coding experience but I want to create my own indie games. I need a course that starts from the basics and teaches me Unity and C# while focusing on 2D game development.",
-                topics: ["Unity", "C#", "2D Graphics", "Game Design"]
+                topics: ["Unity", "C#", "2D Graphics", "Game Design"],
+                color: "from-purple-500 to-indigo-400",
+                emoji: "🎮"
               },
               {
                 title: "Personal Finance & Investment",
                 prompt: "I'm 25 and just started my first job. I want to learn about personal finance, from budgeting to investing in stocks and crypto. Create a comprehensive course for young professionals.",
-                topics: ["Budgeting", "Stocks", "Crypto", "Tax Planning"]
+                topics: ["Budgeting", "Stocks", "Crypto", "Tax Planning"],
+                color: "from-amber-500 to-yellow-400",
+                emoji: "💰"
               }
             ].map((course, index) => (
-              <div 
+              <motion.div 
                 key={index}
-                className="overflow-hidden rounded-lg border bg-card"
+                className="group relative overflow-hidden rounded-2xl border border-neutral-200/50 bg-white shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col"
+                variants={fadeIn}
               >
-                <div className="p-6">
-                  <h3 className="font-semibold text-lg mb-4 text-primary">
-                    {course.title}
-                  </h3>
-                  <div className="relative pl-3 mb-6">
-                    <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary/20 rounded-full" />
-                    <p className="text-sm italic text-muted-foreground">
+                <div className={`absolute inset-0 bg-gradient-to-br ${course.color} opacity-0 group-hover:opacity-[0.02] transition-opacity duration-300`} />
+                
+                <div className="p-1">
+                  <div className={`bg-gradient-to-br ${course.color} rounded-xl p-4 text-white`}>
+                    <div className="text-2xl mb-1">{course.emoji}</div>
+                    <h3 className="font-bold text-lg line-clamp-1 mb-1">
+                      {course.title}
+                    </h3>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {course.topics.slice(0, 2).map((topic, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center rounded-full bg-white/20 backdrop-blur-sm px-2.5 py-0.5 text-xs font-medium"
+                        >
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-5 flex-1 flex flex-col">
+                  <div className="relative mb-6 flex-1">
+                    <div className={`absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b ${course.color} rounded-full`} />
+                    <p className="pl-4 text-sm text-neutral-600 leading-relaxed line-clamp-4 italic">
                       "{course.prompt}"
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {course.topics.map((topic, i) => (
+                  
+                  <div className="flex flex-wrap gap-2 mt-auto">
+                    {course.topics.slice(2).map((topic, i) => (
                       <span
                         key={i}
-                        className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors bg-primary/5 text-primary/70"
+                        className="inline-flex items-center rounded-full border border-neutral-200 px-2.5 py-0.5 text-xs font-medium text-neutral-700"
                       >
                         {topic}
                       </span>
                     ))}
                   </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-neutral-200">
+                    <Button variant="ghost" className="w-full justify-between rounded-xl group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                      View Course <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
+          
+          <motion.div 
+            className="mt-16 text-center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3, duration: 0.8 }}
+          >
+            <Link href="/app">
+              <Button variant="outline" size="lg" className="rounded-full px-8 border-2">
+                Explore All Courses <ExternalLink className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+      
+      {/* Call to Action */}
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600 relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-full bg-[url('/wave.svg')] bg-no-repeat bg-cover opacity-10" />
+          <div className="absolute -bottom-[40%] -right-[10%] w-[50%] aspect-square rounded-full bg-white/20 blur-3xl" />
+          <div className="absolute -top-[20%] -left-[10%] w-[30%] aspect-square rounded-full bg-white/20 blur-3xl" />
+        </div>
+        
+        <div className="container mx-auto px-6 relative">
+          <motion.div 
+            className="max-w-4xl mx-auto text-center"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-6 text-white">
+              Ready to Transform How You Learn?
+            </h2>
+            <p className="text-xl text-white/80 mb-10 max-w-2xl mx-auto">
+              Join thousands of learners who have already discovered the power of personalized AI education.
+            </p>
+            <Link href="/app">
+              <Button size="lg" className="bg-white text-primary hover:bg-white/90 px-8 h-14 rounded-full text-base font-medium">
+                Get Started for Free
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+          </motion.div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-background border-t">
-        <div className="container mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <footer className="bg-white border-t border-neutral-200">
+        <div className="container mx-auto px-6 py-20">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <div className="w-5 h-5 rounded-full bg-primary/80 ring-4 ring-primary/20" />
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full bg-primary/80 ring-4 ring-primary/20" />
                 </div>
-                <span className="text-xl font-bold text-primary">Oyster</span>
+                <span className="text-2xl font-bold text-primary">Oyster</span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Personalized Learning, Limitless Potential
+              <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+                Personalized Learning, Limitless Potential. 
+                Transforming education with AI-powered personalization.
               </p>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>Features</li>
-                <li>Pricing</li>
-                <li>Documentation</li>
-                <li>API</li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>About</li>
-                <li>Blog</li>
-                <li>Careers</li>
-                <li>Contact</li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-4">Connect</h4>
               <div className="flex gap-4">
-                <Github className="h-5 w-5 text-muted-foreground hover:text-primary cursor-pointer" />
-                <Twitter className="h-5 w-5 text-muted-foreground hover:text-primary cursor-pointer" />
-                <Linkedin className="h-5 w-5 text-muted-foreground hover:text-primary cursor-pointer" />
-                <Mail className="h-5 w-5 text-muted-foreground hover:text-primary cursor-pointer" />
+                <a href="#" className="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center group transition-colors hover:bg-primary/10">
+                  <Github className="h-5 w-5 text-neutral-600 dark:text-neutral-400 group-hover:text-primary transition-colors" />
+                </a>
+                <a href="#" className="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center group transition-colors hover:bg-primary/10">
+                  <Twitter className="h-5 w-5 text-neutral-600 dark:text-neutral-400 group-hover:text-primary transition-colors" />
+                </a>
+                <a href="#" className="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center group transition-colors hover:bg-primary/10">
+                  <Linkedin className="h-5 w-5 text-neutral-600 dark:text-neutral-400 group-hover:text-primary transition-colors" />
+                </a>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-lg mb-6">Product</h4>
+              <ul className="space-y-4">
+                <li>
+                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Features</a>
+                </li>
+                <li>
+                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Pricing</a>
+                </li>
+                <li>
+                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Documentation</a>
+                </li>
+                <li>
+                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">API</a>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-lg mb-6">Company</h4>
+              <ul className="space-y-4">
+                <li>
+                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">About</a>
+                </li>
+                <li>
+                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Blog</a>
+                </li>
+                <li>
+                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Careers</a>
+                </li>
+                <li>
+                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Contact</a>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-lg mb-6">Subscribe</h4>
+              <p className="text-neutral-600 dark:text-neutral-400 mb-4">
+                Stay updated with the latest features and releases.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input 
+                  type="email" 
+                  placeholder="Enter your email" 
+                  className="px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary" 
+                />
+                <Button className="whitespace-nowrap">
+                  Subscribe
+                </Button>
               </div>
             </div>
           </div>
 
-          <div className="mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} Oyster. All rights reserved.</p>
+          <div className="mt-16 pt-8 border-t border-neutral-200 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-sm text-neutral-500 dark:text-neutral-500">
+              &copy; {new Date().getFullYear()} Oyster. All rights reserved.
+            </p>
+            <div className="flex gap-6 text-sm">
+              <a href="#" className="text-neutral-500 hover:text-primary transition-colors">Privacy Policy</a>
+              <a href="#" className="text-neutral-500 hover:text-primary transition-colors">Terms of Service</a>
+              <a href="#" className="text-neutral-500 hover:text-primary transition-colors">Cookies</a>
+            </div>
           </div>
         </div>
       </footer>
