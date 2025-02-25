@@ -1,5 +1,5 @@
-import CourseLayout from "@/components/course-layout"
+import { LandingPage } from "@/components/landing-page"
 
 export default function Home() {
-  return <CourseLayout />
+  return <LandingPage />
 }
