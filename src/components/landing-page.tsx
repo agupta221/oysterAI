@@ -278,7 +278,10 @@ export function LandingPage() {
                   <div className={`absolute inset-0 bg-gradient-to-r ${feature.color} rounded-full blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-700`} />
                   <div className={`relative w-16 h-16 rounded-full bg-gradient-to-r ${feature.color} p-0.5`}>
                     <div className="w-full h-full rounded-full bg-white dark:bg-neutral-900 flex items-center justify-center">
-                      <feature.icon className="h-7 w-7 text-white" />
+                      <feature.icon className={`h-7 w-7 ${feature.color === "from-blue-500 to-indigo-600" ? "text-blue-600" : 
+                                                feature.color === "from-green-500 to-emerald-600" ? "text-emerald-600" : 
+                                                feature.color === "from-amber-500 to-orange-600" ? "text-orange-600" : 
+                                                "text-purple-600"}`} />
                     </div>
                   </div>
                 </div>
@@ -382,7 +385,7 @@ export function LandingPage() {
                 <div className="p-5 flex-1 flex flex-col">
                   <div className="relative mb-6 flex-1">
                     <div className={`absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b ${course.color} rounded-full`} />
-                    <p className="pl-4 text-sm text-neutral-600 leading-relaxed line-clamp-4 italic">
+                    <p className="pl-4 text-sm text-neutral-600 leading-relaxed italic">
                       "{course.prompt}"
                     </p>
                   </div>
@@ -396,12 +399,6 @@ export function LandingPage() {
                         {topic}
                       </span>
                     ))}
-                  </div>
-                  
-                  <div className="mt-4 pt-4 border-t border-neutral-200">
-                    <Button variant="ghost" className="w-full justify-between rounded-xl group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                      View Course <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                    </Button>
                   </div>
                 </div>
               </motion.div>
@@ -455,101 +452,6 @@ export function LandingPage() {
           </motion.div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-neutral-200">
-        <div className="container mx-auto px-6 py-20">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <div className="w-6 h-6 rounded-full bg-primary/80 ring-4 ring-primary/20" />
-                </div>
-                <span className="text-2xl font-bold text-primary">Oyster</span>
-              </div>
-              <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-                Personalized Learning, Limitless Potential. 
-                Transforming education with AI-powered personalization.
-              </p>
-              <div className="flex gap-4">
-                <a href="#" className="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center group transition-colors hover:bg-primary/10">
-                  <Github className="h-5 w-5 text-neutral-600 dark:text-neutral-400 group-hover:text-primary transition-colors" />
-                </a>
-                <a href="#" className="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center group transition-colors hover:bg-primary/10">
-                  <Twitter className="h-5 w-5 text-neutral-600 dark:text-neutral-400 group-hover:text-primary transition-colors" />
-                </a>
-                <a href="#" className="w-10 h-10 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center group transition-colors hover:bg-primary/10">
-                  <Linkedin className="h-5 w-5 text-neutral-600 dark:text-neutral-400 group-hover:text-primary transition-colors" />
-                </a>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-lg mb-6">Product</h4>
-              <ul className="space-y-4">
-                <li>
-                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Features</a>
-                </li>
-                <li>
-                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Pricing</a>
-                </li>
-                <li>
-                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Documentation</a>
-                </li>
-                <li>
-                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">API</a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-lg mb-6">Company</h4>
-              <ul className="space-y-4">
-                <li>
-                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">About</a>
-                </li>
-                <li>
-                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Blog</a>
-                </li>
-                <li>
-                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Careers</a>
-                </li>
-                <li>
-                  <a href="#" className="text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors">Contact</a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-lg mb-6">Subscribe</h4>
-              <p className="text-neutral-600 dark:text-neutral-400 mb-4">
-                Stay updated with the latest features and releases.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input 
-                  type="email" 
-                  placeholder="Enter your email" 
-                  className="px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary" 
-                />
-                <Button className="whitespace-nowrap">
-                  Subscribe
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-16 pt-8 border-t border-neutral-200 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-neutral-500 dark:text-neutral-500">
-              &copy; {new Date().getFullYear()} Oyster. All rights reserved.
-            </p>
-            <div className="flex gap-6 text-sm">
-              <a href="#" className="text-neutral-500 hover:text-primary transition-colors">Privacy Policy</a>
-              <a href="#" className="text-neutral-500 hover:text-primary transition-colors">Terms of Service</a>
-              <a href="#" className="text-neutral-500 hover:text-primary transition-colors">Cookies</a>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 } 
