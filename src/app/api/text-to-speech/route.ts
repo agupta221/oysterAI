@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
-import { generateSpeech } from "@/lib/elevenlabs";
+import { generateSpeech } from "@/lib/google-tts";
 
 export async function POST(request: Request) {
-  if (!process.env.ELEVENLABS_API_KEY) {
+  // Check for Google Cloud credentials
+  const hasEnvCredentials = process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY && process.env.GOOGLE_PROJECT_ID;
+  const hasFileCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  
+  if (!hasEnvCredentials && !hasFileCredentials) {
     return NextResponse.json(
-      { error: "ElevenLabs API key not configured" },
+      { error: "Google Cloud credentials not configured. Set either GOOGLE_APPLICATION_CREDENTIALS or individual credential environment variables." },
       { status: 500 }
     );
   }

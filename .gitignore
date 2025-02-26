@@ -47,4 +47,9 @@ next-env.d.ts
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db 
+Thumbs.db
+
+# Google Cloud credentials
+/credentials/
+*.json.key
+*-credentials.json 

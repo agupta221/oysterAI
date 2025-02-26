@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateCourseSummary } from "@/lib/openai";
-import { generateSpeech } from "@/lib/elevenlabs";
+import { generateSpeech } from "@/lib/google-tts";
 import type { Resource } from "@/lib/perplexity";
 import type { Syllabus, Section, Subsection, Topic } from "@/lib/openai";
 import { headers } from "next/headers";
@@ -22,9 +22,14 @@ interface SyllabusWithResources extends Syllabus {
 }
 
 export async function POST(request: Request) {
-  if (!process.env.OPENAI_API_KEY || !process.env.ELEVENLABS_API_KEY) {
+  // Check for required API keys and credentials
+  const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
+  const hasEnvCredentials = process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY && process.env.GOOGLE_PROJECT_ID;
+  const hasFileCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  
+  if (!hasOpenAIKey || (!hasEnvCredentials && !hasFileCredentials)) {
     return NextResponse.json(
-      { error: "Missing required API keys" },
+      { error: "Missing required API keys or credentials" },
       { status: 500 }
     );
   }
