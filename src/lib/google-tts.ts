@@ -7,19 +7,11 @@ let client: TextToSpeechClient;
 try {
   // Check if we have individual credential environment variables
   if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY && process.env.GOOGLE_PROJECT_ID) {
-    // Check if the private key is properly formatted
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY;
-    
-    // If the key doesn't contain the PEM header/footer, assume it needs to be formatted
-    const formattedKey = privateKey.includes('-----BEGIN PRIVATE KEY-----')
-      ? privateKey.replace(/\\n/g, '\n')
-      : `-----BEGIN PRIVATE KEY-----\n${privateKey}\n-----END PRIVATE KEY-----`;
-    
     // Initialize with credentials from environment variables
     client = new TextToSpeechClient({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: formattedKey,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'), // Fix escaped newlines
         project_id: process.env.GOOGLE_PROJECT_ID
       }
     });
@@ -33,22 +25,11 @@ try {
   }
 } catch (error) {
   console.error('Error initializing Google Text-to-Speech client:', error);
-  // Log more details about the credentials (without revealing the full private key)
-  if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY && process.env.GOOGLE_PROJECT_ID) {
-    console.error('Project ID:', process.env.GOOGLE_PROJECT_ID);
-    console.error('Client Email:', process.env.GOOGLE_CLIENT_EMAIL);
-    console.error('Private Key format check:', {
-      length: process.env.GOOGLE_PRIVATE_KEY.length,
-      containsHeader: process.env.GOOGLE_PRIVATE_KEY.includes('-----BEGIN PRIVATE KEY-----'),
-      containsFooter: process.env.GOOGLE_PRIVATE_KEY.includes('-----END PRIVATE KEY-----'),
-      containsNewlines: process.env.GOOGLE_PRIVATE_KEY.includes('\n'),
-    });
-  }
 }
 
 export async function generateSpeech(text: string): Promise<ArrayBuffer> {
   if (!client) {
-    throw new Error("Google Text-to-Speech client not initialized. Make sure Google Cloud credentials are configured correctly.");
+    throw new Error("Google Text-to-Speech client not initialized. Make sure Google Cloud credentials are configured.");
   }
 
   try {
@@ -58,10 +39,11 @@ export async function generateSpeech(text: string): Promise<ArrayBuffer> {
       voice: { 
         languageCode: 'en-US', 
         ssmlGender: 'FEMALE' as const,
-        name: 'en-US-Neural2-F' // Using a standard neural voice that's widely available
+        name: 'en-US-Chirp-HD-O' // Using a high-quality neural voice
       },
       audioConfig: { 
         audioEncoding: 'MP3' as const,
+        effectsProfileId: ['small-bluetooth-speaker-class-device'],
         pitch: 0,
         speakingRate: 1.0
       },
