@@ -14,7 +14,7 @@ export interface Course {
   imageUrl: string
   isGenerating?: boolean
   summary?: string
-  audioUrl?: string
+  audioPath?: string
 }
 
 interface CourseTileProps {

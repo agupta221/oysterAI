@@ -15,6 +15,9 @@ import { enrichSyllabusWithResources } from "@/lib/course-generator"
 import type { Resource } from "@/lib/perplexity"
 import type { Topic } from "@/lib/openai"
 import { AudioPlayer } from "@/components/ui/audio-player"
+import { addCourse, getUserCourses, uploadCourseAudio } from "@/lib/firebase/courseUtils"
+import { auth } from "@/lib/firebase/firebase"
+import { onAuthStateChanged } from "firebase/auth"
 
 const courseSuggestions = [
   {
@@ -71,6 +74,37 @@ export default function MainContent({
   const [courses, setCourses] = useState<Course[]>([])
   const latestMessageRef = useRef<HTMLDivElement>(null)
   const [activeVideo, setActiveVideo] = useState<Resource | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  // Handle authentication state
+  useEffect(() => {
+    console.log('Setting up auth state listener');
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('Auth state changed:', user?.uid);
+      setIsAuthenticated(!!user);
+      
+      // Only load courses if user is authenticated
+      if (user) {
+        loadCourses();
+      } else {
+        setCourses([]);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Separate function to load courses
+  const loadCourses = async () => {
+    console.log('Loading courses...');
+    try {
+      const userCourses = await getUserCourses();
+      console.log('Courses loaded:', userCourses.length);
+      setCourses(userCourses);
+    } catch (error) {
+      console.error('Error loading courses:', error);
+    }
+  };
 
   // Function to extract video ID from YouTube URL
   const getYouTubeVideoId = (url: string) => {
@@ -85,6 +119,18 @@ export default function MainContent({
       latestMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [messages]);
+
+  // Add debug logging for course selection
+  useEffect(() => {
+    if (selectedCourse) {
+      console.log('Selected course:', {
+        id: selectedCourse.id,
+        title: selectedCourse.title,
+        audioPath: selectedCourse.audioPath,
+        hasAudio: !!selectedCourse.audioPath
+      });
+    }
+  }, [selectedCourse]);
 
   const handleInitialSubmit = async () => {
     console.log("Triggering initial syllabus generation");
@@ -216,6 +262,12 @@ export default function MainContent({
       return;
     }
 
+    if (!isAuthenticated) {
+      console.error('User not authenticated');
+      alert('Please sign in to generate courses');
+      return;
+    }
+
     // Create a new course with generating state
     const courseId = uuidv4()
     const newCourse: Course = {
@@ -228,10 +280,12 @@ export default function MainContent({
       isGenerating: true
     }
 
+    // Add to local state first to show loading state
     setCourses(prev => [...prev, newCourse])
     setActiveSection("courses")
 
     try {
+      console.log('Starting course generation...');
       // Find the last user message to get the original request
       const userRequest = [...messages]
         .reverse()
@@ -239,21 +293,44 @@ export default function MainContent({
       
       // Fetch resources for all topics in parallel and generate summary and audio
       const { syllabus: enrichedSyllabus, summary, audioUrl } = await enrichSyllabusWithResources(syllabus, userRequest);
+      console.log('Course generation complete');
 
-      // Update the course with the enriched syllabus, summary, and audio
+      // Convert audio URL to blob
+      console.log('Fetching audio file...');
+      const audioResponse = await fetch(audioUrl);
+      const audioBlob = await audioResponse.blob();
+
+      // Upload audio to Firebase Storage
+      console.log('Uploading audio to Firebase Storage...');
+      const audioPath = await uploadCourseAudio(audioBlob, courseId);
+
+      // Create the final course object
+      const finalCourse: Course = {
+        ...newCourse,
+        syllabus: enrichedSyllabus,
+        summary,
+        audioPath, // Store the Firebase Storage path instead of direct URL
+        isGenerating: false,
+        imageUrl: "https://source.unsplash.com/random/800x600/?education"
+      };
+
+      console.log('Updating local state...');
+      // Update local state first
       setCourses(prev => prev.map(course => 
-        course.id === courseId 
-          ? {
-              ...course,
-              syllabus: enrichedSyllabus,
-              summary,
-              audioUrl,
-              isGenerating: false,
-              imageUrl: "https://source.unsplash.com/random/800x600/?education"
-            }
-          : course
-      ))
+        course.id === courseId ? finalCourse : course
+      ));
+
+      // Only save to Firestore after successful generation and local state update
+      try {
+        console.log('Saving to Firestore...');
+        await addCourse(finalCourse);
+        console.log('Successfully saved to Firestore');
+      } catch (error) {
+        console.error('Error saving course to Firestore:', error);
+        alert('Failed to save course. Please try again.');
+      }
     } catch (error) {
+      console.error('Error generating course:', error);
       // Update the course to show it's no longer generating, but keep the original syllabus
       setCourses(prev => prev.map(course => 
         course.id === courseId 
@@ -263,11 +340,17 @@ export default function MainContent({
               imageUrl: "https://source.unsplash.com/random/800x600/?education"
             }
           : course
-      ))
+      ));
     }
   }
 
   if (selectedCourse) {
+    // Debug log outside of JSX
+    console.log('Course data:', {
+      summary: selectedCourse.summary,
+      audioPath: selectedCourse.audioPath
+    });
+
     return (
       <div className="h-full p-8 overflow-y-auto">
         {selectedTopic ? (
@@ -434,9 +517,10 @@ export default function MainContent({
               <h1 className="text-3xl font-bold tracking-tight text-primary mb-4">
                 Welcome to Your Learning Journey
               </h1>
-              {selectedCourse.summary && selectedCourse.audioUrl && (
+              {/* Remove the conditional check for summary since we only need audioPath */}
+              {selectedCourse.audioPath && (
                 <div className="mb-8">
-                  <AudioPlayer audioUrl={selectedCourse.audioUrl} />
+                  <AudioPlayer audioPath={selectedCourse.audioPath} />
                 </div>
               )}
               <div className="space-y-4 text-muted-foreground">
@@ -651,7 +735,16 @@ export default function MainContent({
   }
 
   if (activeSection === "courses") {
-    return <CoursesView courses={courses} onCourseClick={setSelectedCourse} />
+    return (
+      <CoursesView 
+        courses={courses} 
+        onCourseClick={setSelectedCourse}
+        onCourseDelete={(courseId) => {
+          // Update local state to remove the deleted course
+          setCourses(prev => prev.filter(course => course.id !== courseId));
+        }}
+      />
+    )
   }
 
   return (
