@@ -13,7 +13,7 @@ import {
   getDoc
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import type { Course } from "@/components/ui/course-tile";
+import type { Course, CapstoneProject } from "@/components/ui/course-tile";
 
 // Collection name for courses
 const COURSES_COLLECTION = 'courses';
@@ -85,6 +85,7 @@ export interface FirestoreCourse {
   summary?: string;
   audioPath?: string;
   syllabus?: any; // We'll keep this as 'any' since it's a complex nested structure
+  capstone?: CapstoneProject;
 }
 
 // Helper function to sanitize data for Firestore
@@ -142,6 +143,11 @@ const courseToFirestore = (course: Course, userId: string): FirestoreCourse => {
     baseData.syllabus = sanitizeForFirestore(course.syllabus);
   }
 
+  // Add capstone project if it exists
+  if (course.capstone) {
+    baseData.capstone = sanitizeForFirestore(course.capstone);
+  }
+
   console.log('Sanitized course data:', baseData);
   return baseData as FirestoreCourse;
 };
@@ -158,6 +164,7 @@ const firestoreToCourse = (firestoreDoc: FirestoreCourse): Course => {
     summary: firestoreDoc.summary,
     audioPath: firestoreDoc.audioPath,
     syllabus: firestoreDoc.syllabus,
+    capstone: firestoreDoc.capstone,
   };
 };
 

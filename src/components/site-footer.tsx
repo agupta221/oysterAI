@@ -26,7 +26,7 @@ export function SiteFooter() {
             <h3 className="font-medium mb-4 text-white">Product</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/app" className="text-white/70 hover:text-white transition-colors">
+                <Link href="/dashboard" className="text-white/70 hover:text-white transition-colors">
                   App
                 </Link>
               </li>

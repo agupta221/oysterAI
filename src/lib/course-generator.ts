@@ -1,6 +1,7 @@
 import type { Syllabus, Section, Subsection, Topic } from "./openai";
 import { fetchResourcesForTopic, type Resource } from "./perplexity";
 import { generateCourseSummary } from "./openai";
+import type { CapstoneProject } from "@/components/ui/course-tile";
 
 interface TopicWithResources extends Topic {
   resources: Resource[];
@@ -21,7 +22,7 @@ interface SyllabusWithResources extends Syllabus {
 export async function enrichSyllabusWithResources(
   syllabus: Syllabus,
   userRequest: string
-): Promise<{ syllabus: Syllabus; summary: string; audioUrl: string }> {
+): Promise<{ syllabus: Syllabus; summary: string; audioUrl: string; capstone: CapstoneProject }> {
   try {
     const response = await fetch('/api/enrich-course', {
       method: 'POST',
@@ -35,7 +36,7 @@ export async function enrichSyllabusWithResources(
       throw new Error('Failed to enrich course');
     }
 
-    const { syllabus: enrichedSyllabus, summary, audioData } = await response.json();
+    const { syllabus: enrichedSyllabus, summary, audioData, capstone } = await response.json();
 
     // Create a Blob URL for the audio
     const audioBlob = new Blob(
@@ -44,7 +45,7 @@ export async function enrichSyllabusWithResources(
     );
     const audioUrl = URL.createObjectURL(audioBlob);
 
-    return { syllabus: enrichedSyllabus, summary, audioUrl };
+    return { syllabus: enrichedSyllabus, summary, audioUrl, capstone };
   } catch (error) {
     throw error;
   }

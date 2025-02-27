@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import Sidebar, { ActiveSection } from "@/components/sidebar"
 import MainContent from "@/components/main-content"
-import type { Course } from "@/components/ui/course-tile"
+import type { Course, CapstoneProject } from "@/components/ui/course-tile"
 import type { Topic } from "@/lib/openai"
 import type { VideoResource } from "@/lib/serpapi"
 
@@ -19,10 +19,17 @@ export default function CourseLayout() {
   const [activeSection, setActiveSection] = useState<ActiveSection>(null)
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [selectedTopic, setSelectedTopic] = useState<TopicWithResources | null>(null)
+  const [selectedCapstone, setSelectedCapstone] = useState<CapstoneProject | null>(null)
 
   const handleCourseDeselect = () => {
     setSelectedCourse(null)
     setSelectedTopic(null)
+    setSelectedCapstone(null)
+  }
+
+  const handleCapstoneClick = (capstone: CapstoneProject) => {
+    setSelectedTopic(null)
+    setSelectedCapstone(capstone)
   }
 
   return (
@@ -43,6 +50,7 @@ export default function CourseLayout() {
               selectedCourse={selectedCourse}
               onCourseDeselect={handleCourseDeselect}
               onTopicClick={setSelectedTopic}
+              onCapstoneClick={handleCapstoneClick}
             />
           </div>
         </aside>
@@ -75,6 +83,8 @@ export default function CourseLayout() {
           setSelectedCourse={setSelectedCourse}
           selectedTopic={selectedTopic}
           setSelectedTopic={setSelectedTopic}
+          selectedCapstone={selectedCapstone}
+          setSelectedCapstone={setSelectedCapstone}
         />
       </main>
     </div>

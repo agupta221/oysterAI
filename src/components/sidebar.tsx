@@ -2,13 +2,15 @@ import Link from 'next/link'
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Book, Clock, GraduationCap, Layout, Settings, Target, ArrowLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { Course } from "@/components/ui/course-tile"
+import type { Course, CapstoneProject } from "@/components/ui/course-tile"
 import { Syllabus } from "@/components/ui/syllabus"
 import { Button } from "@/components/ui/button"
 import type { Topic } from "@/lib/openai"
 import type { VideoResource } from "@/lib/serpapi"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { AuthStatus } from "@/components/auth/auth-status"
+import { useState } from "react"
+import { updateCourse } from "@/lib/firebase/courseUtils"
 
 interface TopicWithResources extends Topic {
   resources?: VideoResource[];
@@ -22,6 +24,7 @@ interface SidebarProps {
   selectedCourse: Course | null;
   onCourseDeselect: () => void;
   onTopicClick: (topic: TopicWithResources) => void;
+  onCapstoneClick?: (capstone: CapstoneProject) => void;
 }
 
 const sidebarSections = [
@@ -45,11 +48,18 @@ const sidebarSections = [
   },
 ]
 
-export default function Sidebar({ onSectionClick, activeSection, selectedCourse, onCourseDeselect, onTopicClick }: SidebarProps) {
+export default function Sidebar({ onSectionClick, activeSection, selectedCourse, onCourseDeselect, onTopicClick, onCapstoneClick }: SidebarProps) {
+  const [isGeneratingCapstone, setIsGeneratingCapstone] = useState(false);
+
   const handleBackClick = () => {
     onCourseDeselect()
     onSectionClick("courses")
   }
+
+  const handleCapstoneClick = () => {
+    if (!selectedCourse?.capstone || !onCapstoneClick) return;
+    onCapstoneClick(selectedCourse.capstone);
+  };
 
   if (selectedCourse) {
     return (
@@ -81,6 +91,19 @@ export default function Sidebar({ onSectionClick, activeSection, selectedCourse,
           )}
         </div>
         
+        {/* Course Capstone Button */}
+        <div className="px-4 pb-2">
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={handleCapstoneClick}
+            disabled={!selectedCourse.capstone}
+          >
+            <GraduationCap className="h-4 w-4" />
+            {selectedCourse.capstone ? "View Capstone Project" : "No Capstone Available"}
+          </Button>
+        </div>
+
         {/* User controls at bottom */}
         <div className="p-4 border-t flex items-center justify-between">
           <ThemeToggle />

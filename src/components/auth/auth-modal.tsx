@@ -19,7 +19,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'login' }: AuthModalPr
 
   const handleAuthSuccess = () => {
     onClose()
-    router.push('/app')
+    router.push('/dashboard')
   }
 
   const handleSignupSuccess = () => {

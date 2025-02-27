@@ -21,6 +21,9 @@ import { onAuthStateChanged } from "firebase/auth"
 import { ChatBot } from "@/components/ui/chat-bot"
 import { QuizModal } from "@/components/ui/quiz-modal"
 import { generateQuizQuestions } from "@/lib/quiz-generator"
+import { CapstoneDisplay } from "@/components/ui/capstone-display"
+import type { CapstoneProject } from "@/components/ui/course-tile"
+import Sidebar from "@/components/sidebar"
 
 const courseSuggestions = [
   {
@@ -58,6 +61,8 @@ interface MainContentProps {
   setSelectedCourse: (course: Course | null) => void;
   selectedTopic: Topic | null;
   setSelectedTopic: (topic: Topic | null) => void;
+  selectedCapstone: CapstoneProject | null;
+  setSelectedCapstone: (capstone: CapstoneProject | null) => void;
 }
 
 export default function MainContent({ 
@@ -66,7 +71,9 @@ export default function MainContent({
   selectedCourse, 
   setSelectedCourse,
   selectedTopic,
-  setSelectedTopic 
+  setSelectedTopic,
+  selectedCapstone,
+  setSelectedCapstone
 }: MainContentProps) {
   const [searchText, setSearchText] = useState("")
   const [showChat, setShowChat] = useState(false)
@@ -298,7 +305,7 @@ export default function MainContent({
         .find(m => m.type === 'user')?.content || "";
       
       // Fetch resources for all topics in parallel and generate summary and audio
-      const { syllabus: enrichedSyllabus, summary, audioUrl } = await enrichSyllabusWithResources(syllabus, userRequest);
+      const { syllabus: enrichedSyllabus, summary, audioUrl, capstone } = await enrichSyllabusWithResources(syllabus, userRequest);
       console.log('Course generation complete');
 
       // Convert audio URL to blob
@@ -317,7 +324,8 @@ export default function MainContent({
         summary,
         audioPath, // Store the Firebase Storage path instead of direct URL
         isGenerating: false,
-        imageUrl: "https://source.unsplash.com/random/800x600/?education"
+        imageUrl: "https://source.unsplash.com/random/800x600/?education",
+        capstone, // Include the capstone project
       };
 
       console.log('Updating local state...');
@@ -337,16 +345,9 @@ export default function MainContent({
       }
     } catch (error) {
       console.error('Error generating course:', error);
-      // Update the course to show it's no longer generating, but keep the original syllabus
-      setCourses(prev => prev.map(course => 
-        course.id === courseId 
-          ? {
-              ...course,
-              isGenerating: false,
-              imageUrl: "https://source.unsplash.com/random/800x600/?education"
-            }
-          : course
-      ));
+      alert('Failed to generate course. Please try again.');
+      // Update local state to remove the loading course
+      setCourses(prev => prev.filter(course => course.id !== courseId));
     }
   }
 
@@ -459,6 +460,8 @@ export default function MainContent({
               />
             )}
           </div>
+        ) : selectedCapstone ? (
+          <CapstoneDisplay capstone={selectedCapstone} />
         ) : (
           <div className="flex h-full items-center justify-center">
             <div className="max-w-2xl text-center">
@@ -713,6 +716,48 @@ export default function MainContent({
           Dive in. Build your perfect learning experience!
         </p>
       </div>
+    </div>
+  )
+}
+
+export function CourseLayout() {
+  const [activeSection, setActiveSection] = useState<ActiveSection>(null)
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
+  const [selectedCapstone, setSelectedCapstone] = useState<CapstoneProject | null>(null)
+
+  const handleCapstoneClick = (capstone: CapstoneProject) => {
+    setSelectedTopic(null);
+    setSelectedCapstone(capstone);
+  };
+
+  return (
+    <div className="grid lg:grid-cols-[300px_1fr]">
+      <Sidebar
+        activeSection={activeSection}
+        onSectionClick={setActiveSection}
+        selectedCourse={selectedCourse}
+        onCourseDeselect={() => {
+          setSelectedCourse(null)
+          setSelectedTopic(null)
+          setSelectedCapstone(null)
+        }}
+        onTopicClick={(topic: TopicWithResources) => {
+          setSelectedTopic(topic)
+          setSelectedCapstone(null)
+        }}
+        onCapstoneClick={handleCapstoneClick}
+      />
+      <MainContent
+        activeSection={activeSection}
+        setActiveSection={setActiveSection}
+        selectedCourse={selectedCourse}
+        setSelectedCourse={setSelectedCourse}
+        selectedTopic={selectedTopic}
+        setSelectedTopic={setSelectedTopic}
+        selectedCapstone={selectedCapstone}
+        setSelectedCapstone={setSelectedCapstone}
+      />
     </div>
   )
 } 

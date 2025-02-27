@@ -117,6 +117,57 @@ Your summary should:
 
 Focus on making the student feel empowered and eager to begin their learning adventure!`;
 
+const CAPSTONE_PROMPT = `You are an expert course creator tasked with designing a comprehensive capstone project that tests and reinforces all the key learnings from a course.
+
+Your task is to create a detailed, multi-section capstone project that:
+1. Integrates concepts from across the entire course syllabus
+2. Provides practical, hands-on application of learned skills
+3. Builds progressively through multiple sections
+4. Has clear, actionable instructions and expected outputs
+5. Challenges students while remaining achievable
+
+For each section:
+1. Provide a clear title that indicates the focus area
+2. Write a brief description of what will be accomplished
+3. Include step-by-step instructions (3-5 detailed steps)
+4. Specify the expected output/deliverable
+
+The capstone should:
+- Be substantial enough to demonstrate mastery
+- Build on previous sections
+- Include both technical and conceptual elements
+- Result in a meaningful final project
+- Be clearly scoped and achievable
+
+Format the response as a JSON object with the following structure:
+{
+  "title": "Project title",
+  "description": "Overall project description",
+  "sections": [
+    {
+      "title": "Section title",
+      "description": "Section description",
+      "instructions": ["Step 1", "Step 2", "Step 3"],
+      "expectedOutput": "Description of expected output"
+    }
+  ]
+}`;
+
+export const CapstoneProjectSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  sections: z.array(
+    z.object({
+      title: z.string(),
+      description: z.string(),
+      instructions: z.array(z.string()),
+      expectedOutput: z.string(),
+    })
+  ),
+});
+
+export type CapstoneProject = z.infer<typeof CapstoneProjectSchema>;
+
 export async function generateSyllabus(userInput: string): Promise<SyllabusResponse> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -159,7 +210,7 @@ export async function modifySyllabus(
   });
 
   const completion = await openai.beta.chat.completions.parse({
-    model: "gpt-4-0125-preview",
+    model: "gpt-4o-2024-08-06",
     messages: [
       { role: "system", content: MODIFICATION_PROMPT },
       { 
@@ -202,4 +253,38 @@ export async function generateCourseSummary(syllabus: Syllabus): Promise<string>
   });
 
   return completion.choices[0].message.content || "Failed to generate course summary";
+}
+
+export async function generateCapstoneProject(
+  syllabus: Syllabus,
+  userRequest: string
+): Promise<CapstoneProject> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing OPENAI_API_KEY environment variable");
+  }
+
+  const openai = new OpenAI({
+    apiKey: apiKey,
+  });
+
+  const completion = await openai.beta.chat.completions.parse({
+    model: "gpt-4o-2024-08-06",
+    messages: [
+      { role: "system", content: CAPSTONE_PROMPT },
+      { 
+        role: "user", 
+        content: `Original Course Request: ${userRequest}\n\nCourse Syllabus: ${JSON.stringify(syllabus, null, 2)}\n\nPlease generate a comprehensive capstone project that allows students to demonstrate their mastery of the course material.`
+      },
+    ],
+    response_format: zodResponseFormat(CapstoneProjectSchema, "response"),
+    temperature: 0.7,
+  });
+
+  const parsed = completion.choices[0].message.parsed;
+  if (!parsed) {
+    throw new Error("Failed to parse OpenAI response");
+  }
+
+  return parsed;
 } 

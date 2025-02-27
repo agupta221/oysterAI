@@ -31,9 +31,9 @@ export function SiteHeader() {
             Home
           </Link>
           <Link
-            href="/app"
+            href="/dashboard"
             className={`transition-colors hover:text-foreground/80 ${
-              isActive('/app') ? 'text-foreground' : 'text-foreground/60'
+              isActive('/dashboard') ? 'text-foreground' : 'text-foreground/60'
             }`}
           >
             App

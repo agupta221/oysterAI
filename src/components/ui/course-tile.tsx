@@ -5,6 +5,19 @@ import Image from "next/image"
 import type { VideoResource } from "@/lib/serpapi"
 import type { Syllabus } from "@/lib/openai"
 
+export interface CapstoneSection {
+  title: string;
+  description: string;
+  instructions: string[];
+  expectedOutput: string;
+}
+
+export interface CapstoneProject {
+  title: string;
+  description: string;
+  sections: CapstoneSection[];
+}
+
 export interface Course {
   id: string
   title: string
@@ -15,6 +28,7 @@ export interface Course {
   isGenerating?: boolean
   summary?: string
   audioPath?: string
+  capstone?: CapstoneProject
 }
 
 interface CourseTileProps {

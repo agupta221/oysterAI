@@ -107,7 +107,7 @@ export function LandingPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Link href="/app">
+            <Link href="/dashboard">
               <Button className="rounded-full px-6 font-medium">
                 Sign In <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
@@ -145,7 +145,7 @@ export function LandingPage() {
               Create personalized courses, discover curated resources, and master any subject with our AI-powered education platform.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/app">
+              <Link href="/dashboard">
                 <Button size="lg" className="px-8 h-14 rounded-full text-base shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/20 transition-all group">
                   Start Learning Now
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -412,7 +412,7 @@ export function LandingPage() {
             viewport={{ once: true }}
             transition={{ delay: 0.3, duration: 0.8 }}
           >
-            <Link href="/app">
+            <Link href="/dashboard">
               <Button variant="outline" size="lg" className="rounded-full px-8 border-2">
                 Explore All Courses <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
@@ -443,7 +443,7 @@ export function LandingPage() {
             <p className="text-xl text-white/80 mb-10 max-w-2xl mx-auto">
               Join thousands of learners who have already discovered the power of personalized AI education.
             </p>
-            <Link href="/app">
+            <Link href="/dashboard">
               <Button size="lg" className="bg-white text-primary hover:bg-white/90 px-8 h-14 rounded-full text-base font-medium">
                 Get Started for Free
                 <ArrowRight className="ml-2 h-5 w-5" />
