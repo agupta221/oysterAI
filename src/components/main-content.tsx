@@ -18,6 +18,7 @@ import { AudioPlayer } from "@/components/ui/audio-player"
 import { addCourse, getUserCourses, uploadCourseAudio } from "@/lib/firebase/courseUtils"
 import { auth } from "@/lib/firebase/firebase"
 import { onAuthStateChanged } from "firebase/auth"
+import { ChatBot } from "@/components/ui/chat-bot"
 
 const courseSuggestions = [
   {
@@ -456,6 +457,8 @@ export default function MainContent({
                 ))}
               </div>
             )}
+
+            <ChatBot currentTopic={selectedTopic} />
           </div>
         ) : (
           <div className="flex h-full items-center justify-center">
