@@ -6,12 +6,12 @@ import type { Course } from "@/components/ui/course-tile"
 import { Syllabus } from "@/components/ui/syllabus"
 import { Button } from "@/components/ui/button"
 import type { Topic } from "@/lib/openai"
-import type { Resource } from "@/lib/perplexity"
+import type { VideoResource } from "@/lib/serpapi"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { AuthStatus } from "@/components/auth/auth-status"
 
 interface TopicWithResources extends Topic {
-  resources?: Resource[];
+  resources?: VideoResource[];
 }
 
 export type ActiveSection = "build" | "courses" | "preferences" | null

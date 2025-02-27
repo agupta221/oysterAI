@@ -4,8 +4,9 @@ import { z } from "zod";
 
 export interface Topic {
   title: string;
-  description?: string;
+  description: string;
   isCompleted?: boolean;
+  searchQuery: string; // Specific 7-8 word search query for video resources
 }
 
 export interface Subsection {
@@ -37,7 +38,8 @@ export const SyllabusSchema = z.object({
           topics: z.array(
             z.object({
               title: z.string(),
-              description: z.string().optional(),
+              description: z.string(),
+              searchQuery: z.string(),
             })
           ),
         })
@@ -57,9 +59,22 @@ export type SyllabusResponse = z.infer<typeof SyllabusResponseSchema>;
 
 const SYSTEM_PROMPT = `You are an expert course creator. Your task is to create detailed, well-structured course syllabi based on user requirements.
 Each syllabus should be comprehensive yet focused, with clear learning objectives and a logical progression of topics.
-Ensure each section and subsection has clear, actionable learning outcomes.
-Keep descriptions concise but informative.
-Include 5-6 main sections, each with 2-3 subsections, and 4-5 specific topics per subsection.
+
+For each topic, you must include:
+1. A clear, descriptive title
+2. A concise description of what will be learned
+3. A specific 7-8 word search query that will be used to find relevant educational videos
+   - The search query should be highly specific and include technical terms
+   - Include words like "tutorial", "guide", or "explained" to find educational content
+   - Focus on the exact concept being taught, not general topics
+   - Example: "React Redux State Management Tutorial for Beginners"
+
+Structure requirements:
+- Include 5-6 main sections
+- Each section should have 2-3 subsections
+- Each subsection should have 2-3 specific topics
+- Ensure each section and subsection has clear, actionable learning outcomes
+- Keep descriptions concise but informative
 
 Along with the syllabus, provide a 2-3 line description explaining what you created and how it addresses the user's needs.`;
 
@@ -70,6 +85,15 @@ Your task is to analyze the current syllabus and the user's modification request
 3. Preserves relevant parts of the original syllabus
 4. Ensures logical flow and progression
 5. Keeps the same level of detail and professionalism
+
+For each topic, you must maintain or create:
+1. A clear, descriptive title
+2. A concise description of what will be learned
+3. A specific 7-8 word search query that will be used to find relevant educational videos
+   - The search query should be highly specific and include technical terms
+   - Include words like "tutorial", "guide", or "explained" to find educational content
+   - Focus on the exact concept being taught, not general topics
+   - Example: "React Redux State Management Tutorial for Beginners"
 
 Along with the modified syllabus, provide a 2-3 line description explaining what changes you made and how they address the user's requests.
 
@@ -133,7 +157,7 @@ export async function modifySyllabus(
   });
 
   const completion = await openai.beta.chat.completions.parse({
-    model: "gpt-4o-2024-08-06",
+    model: "gpt-4-0125-preview",
     messages: [
       { role: "system", content: MODIFICATION_PROMPT },
       { 

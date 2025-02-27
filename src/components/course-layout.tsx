@@ -8,10 +8,10 @@ import Sidebar, { ActiveSection } from "@/components/sidebar"
 import MainContent from "@/components/main-content"
 import type { Course } from "@/components/ui/course-tile"
 import type { Topic } from "@/lib/openai"
-import type { Resource } from "@/lib/perplexity"
+import type { VideoResource } from "@/lib/serpapi"
 
 interface TopicWithResources extends Topic {
-  resources?: Resource[];
+  resources?: VideoResource[];
 }
 
 export default function CourseLayout() {

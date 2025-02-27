@@ -2,7 +2,7 @@ import { format } from "date-fns"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { LoadingOverlay } from "@/components/ui/loading-overlay"
 import Image from "next/image"
-import type { Resource } from "@/lib/perplexity"
+import type { VideoResource } from "@/lib/serpapi"
 import type { Syllabus } from "@/lib/openai"
 
 export interface Course {

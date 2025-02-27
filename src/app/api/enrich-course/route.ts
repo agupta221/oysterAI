@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { generateCourseSummary } from "@/lib/openai";
 import { generateSpeech } from "@/lib/google-tts";
-import type { Resource } from "@/lib/perplexity";
+import type { VideoResource } from "@/lib/serpapi";
 import type { Syllabus, Section, Subsection, Topic } from "@/lib/openai";
 import { headers } from "next/headers";
 
 interface TopicWithResources extends Topic {
-  resources: Resource[];
+  resources: VideoResource[];
 }
 
 interface SubsectionWithResources extends Subsection {
@@ -26,8 +26,9 @@ export async function POST(request: Request) {
   const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
   const hasEnvCredentials = process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY && process.env.GOOGLE_PROJECT_ID;
   const hasFileCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const hasSerpApiKey = !!process.env.SERPAPI_API_KEY;
   
-  if (!hasOpenAIKey || (!hasEnvCredentials && !hasFileCredentials)) {
+  if (!hasOpenAIKey || (!hasEnvCredentials && !hasFileCredentials) || !hasSerpApiKey) {
     return NextResponse.json(
       { error: "Missing required API keys or credentials" },
       { status: 500 }
@@ -52,12 +53,10 @@ export async function POST(request: Request) {
                 subsection.topics.map(async (topic: Topic) => {
                   try {
                     const queryParams = new URLSearchParams({
-                      topicTitle: topic.title,
-                      subsectionTitle: subsection.title,
-                      userRequest,
+                      searchQuery: topic.searchQuery,
                     }).toString();
 
-                    const response = await fetch(`${baseUrl}/api/perplexity?${queryParams}`, {
+                    const response = await fetch(`${baseUrl}/api/serpapi?${queryParams}`, {
                       method: 'GET',
                       headers: {
                         'Content-Type': 'application/json',
@@ -65,7 +64,7 @@ export async function POST(request: Request) {
                     });
 
                     if (!response.ok) {
-                      throw new Error('Failed to fetch resources');
+                      throw new Error('Failed to fetch video resources');
                     }
 
                     const { resources } = await response.json();
@@ -123,4 +122,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

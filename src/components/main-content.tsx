@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { ActiveSection } from "./sidebar"
 import { Button } from "@/components/ui/button"
-import { Search, Sparkles, MessageSquare, Wand2, Send, User, X, ArrowLeft, Play, FileText, BookOpen, Pause, Volume2, CheckCircle } from "lucide-react"
+import { Search, Sparkles, MessageSquare, Wand2, Send, User, X, ArrowLeft, Play, FileText, BookOpen, Pause, Volume2, CheckCircle, ChevronRight } from "lucide-react"
 import { Syllabus } from "@/components/ui/syllabus"
 import { LoadingOverlay } from "@/components/ui/loading-overlay"
 import { cn } from "@/lib/utils"
@@ -12,7 +12,7 @@ import { CoursesView } from "@/components/courses-view"
 import { v4 as uuidv4 } from "uuid"
 import type { Course } from "@/components/ui/course-tile"
 import { enrichSyllabusWithResources } from "@/lib/course-generator"
-import type { Resource } from "@/lib/perplexity"
+import type { VideoResource } from "@/lib/serpapi"
 import type { Topic } from "@/lib/openai"
 import { AudioPlayer } from "@/components/ui/audio-player"
 import { addCourse, getUserCourses, uploadCourseAudio } from "@/lib/firebase/courseUtils"
@@ -45,7 +45,7 @@ interface Message {
 }
 
 interface TopicWithResources extends Topic {
-  resources?: Resource[];
+  resources?: VideoResource[];
 }
 
 interface MainContentProps {
@@ -73,7 +73,7 @@ export default function MainContent({
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false)
   const [courses, setCourses] = useState<Course[]>([])
   const latestMessageRef = useRef<HTMLDivElement>(null)
-  const [activeVideo, setActiveVideo] = useState<Resource | null>(null)
+  const [activeVideo, setActiveVideo] = useState<VideoResource | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   // Handle authentication state
@@ -344,6 +344,56 @@ export default function MainContent({
     }
   }
 
+  // Replace the ResourceCard component
+  const ResourceCard = ({ resource }: { resource: VideoResource }) => {
+    const [isVideoVisible, setIsVideoVisible] = useState(false);
+    const videoId = getYouTubeVideoId(resource.url);
+
+    return (
+      <div className="space-y-4">
+        <button
+          onClick={() => setIsVideoVisible(!isVideoVisible)}
+          className="w-full text-left"
+        >
+          <div className="flex items-start space-x-4 p-4 rounded-lg bg-card hover:bg-primary/5 transition-colors">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                {isVideoVisible ? (
+                  <X className="w-5 h-5 text-primary" />
+                ) : (
+                  <Play className="w-5 h-5 text-primary" />
+                )}
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-medium text-card-foreground truncate">
+                {resource.title}
+              </h4>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {resource.description}
+              </p>
+              <div className="mt-2 inline-flex items-center text-sm text-primary">
+                {isVideoVisible ? 'Hide Video' : 'Watch Video'}
+                <ChevronRight className="ml-1 w-4 h-4" />
+              </div>
+            </div>
+          </div>
+        </button>
+
+        {isVideoVisible && videoId && (
+          <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
+            <iframe
+              src={`https://www.youtube.com/embed/${videoId}`}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (selectedCourse) {
     // Debug log outside of JSX
     console.log('Course data:', {
@@ -399,110 +449,11 @@ export default function MainContent({
               <p className="text-muted-foreground mb-8">{selectedTopic.description}</p>
             )}
             
-            {selectedTopic.resources && selectedTopic.resources.length > 0 ? (
-              <div className="space-y-12">
-                {/* Video Resources */}
-                <div className="space-y-6">
-                  <h3 className="text-lg font-semibold">Video Resources</h3>
-                  {activeVideo && (
-                    <div className="aspect-video w-full mb-6 rounded-lg overflow-hidden bg-black">
-                      <iframe
-                        src={`https://www.youtube.com/embed/${getYouTubeVideoId(activeVideo.url)}`}
-                        className="w-full h-full"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  )}
-                  <div className="grid gap-4">
-                    {selectedTopic.resources
-                      .filter(resource => resource.type === 'video')
-                      .map((resource, index) => (
-                        <button
-                          key={index}
-                          onClick={() => {
-                            if (activeVideo === resource) {
-                              setActiveVideo(null); // Close video if it's already active
-                            } else {
-                              setActiveVideo(resource); // Open new video
-                            }
-                          }}
-                          className={cn(
-                            "block p-4 rounded-lg border text-left transition-colors group",
-                            activeVideo === resource 
-                              ? "border-primary bg-primary/10" 
-                              : "border-primary/10 bg-primary/5 hover:bg-primary/10"
-                          )}
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                              {activeVideo === resource ? (
-                                <X className="h-4 w-4 text-primary" />
-                              ) : (
-                                <Play className="h-4 w-4 text-primary" />
-                              )}
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-primary group-hover:text-primary/80 mb-1">
-                                {resource.title}
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                                {resource.description}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                  </div>
-                  {selectedTopic.resources.filter(resource => resource.type === 'video').length === 0 && (
-                    <p className="text-center text-muted-foreground">No video resources available for this topic.</p>
-                  )}
-                </div>
-
-                {/* Additional Resources */}
-                <div className="space-y-6">
-                  <h3 className="text-lg font-semibold">Additional Resources</h3>
-                  <div className="grid gap-4">
-                    {selectedTopic.resources
-                      .filter(resource => resource.type !== 'video')
-                      .map((resource, index) => (
-                      <a
-                        key={index}
-                        href={resource.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block p-4 rounded-lg border border-primary/10 bg-primary/5 hover:bg-primary/10 transition-colors group"
-                      >
-                        <div className="flex items-start gap-4">
-                          {resource.type === 'article' ? (
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                              <FileText className="h-4 w-4 text-primary" />
-                            </div>
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                              <BookOpen className="h-4 w-4 text-primary" />
-                            </div>
-                          )}
-                          <div>
-                            <h4 className="font-medium text-primary group-hover:text-primary/80 mb-1">
-                              {resource.title}
-                            </h4>
-                            <p className="text-sm text-muted-foreground">
-                              {resource.description}
-                            </p>
-                          </div>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                  {selectedTopic.resources.filter(resource => resource.type !== 'video').length === 0 && (
-                    <p className="text-center text-muted-foreground">No additional resources available for this topic.</p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center text-muted-foreground">
-                <p>No resources available for this topic yet.</p>
+            {selectedTopic.resources && (
+              <div className="space-y-4 mt-4">
+                {selectedTopic.resources.map((resource, index) => (
+                  <ResourceCard key={index} resource={resource} />
+                ))}
               </div>
             )}
           </div>

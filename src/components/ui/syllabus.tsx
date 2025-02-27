@@ -8,10 +8,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { Topic } from "@/lib/openai"
-import type { Resource } from "@/lib/perplexity"
+import type { VideoResource } from "@/lib/serpapi"
 
 interface TopicWithResources extends Topic {
-  resources?: Resource[];
+  resources?: VideoResource[];
 }
 
 interface SyllabusSection {
