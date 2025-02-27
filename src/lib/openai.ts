@@ -1,12 +1,14 @@
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
+import type { VideoResource } from "./serpapi"
 
 export interface Topic {
   title: string;
   description: string;
+  searchQuery: string;
   isCompleted?: boolean;
-  searchQuery: string; // Specific 7-8 word search query for video resources
+  resources?: VideoResource[];
 }
 
 export interface Subsection {

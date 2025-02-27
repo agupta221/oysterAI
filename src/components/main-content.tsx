@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { ActiveSection } from "./sidebar"
 import { Button } from "@/components/ui/button"
-import { Search, Sparkles, MessageSquare, Wand2, Send, User, X, ArrowLeft, Play, FileText, BookOpen, Pause, Volume2, CheckCircle, ChevronRight } from "lucide-react"
+import { Search, Sparkles, MessageSquare, Wand2, Send, User, X, ArrowLeft, Play, FileText, BookOpen, Pause, Volume2, CheckCircle, ChevronRight, Brain } from "lucide-react"
 import { Syllabus } from "@/components/ui/syllabus"
 import { LoadingOverlay } from "@/components/ui/loading-overlay"
 import { cn } from "@/lib/utils"
@@ -19,6 +19,8 @@ import { addCourse, getUserCourses, uploadCourseAudio } from "@/lib/firebase/cou
 import { auth } from "@/lib/firebase/firebase"
 import { onAuthStateChanged } from "firebase/auth"
 import { ChatBot } from "@/components/ui/chat-bot"
+import { QuizModal } from "@/components/ui/quiz-modal"
+import { generateQuizQuestions } from "@/lib/quiz-generator"
 
 const courseSuggestions = [
   {
@@ -54,8 +56,8 @@ interface MainContentProps {
   setActiveSection: (section: ActiveSection) => void;
   selectedCourse: Course | null;
   setSelectedCourse: (course: Course | null) => void;
-  selectedTopic: TopicWithResources | null;
-  setSelectedTopic: (topic: TopicWithResources | null) => void;
+  selectedTopic: Topic | null;
+  setSelectedTopic: (topic: Topic | null) => void;
 }
 
 export default function MainContent({ 
@@ -76,6 +78,9 @@ export default function MainContent({
   const latestMessageRef = useRef<HTMLDivElement>(null)
   const [activeVideo, setActiveVideo] = useState<VideoResource | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [showQuizModal, setShowQuizModal] = useState(false)
+  const [quizQuestions, setQuizQuestions] = useState<any[]>([])
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false)
 
   // Handle authentication state
   useEffect(() => {
@@ -395,55 +400,37 @@ export default function MainContent({
     );
   };
 
-  if (selectedCourse) {
-    // Debug log outside of JSX
-    console.log('Course data:', {
-      summary: selectedCourse.summary,
-      audioPath: selectedCourse.audioPath
-    });
+  const handleStartQuiz = async () => {
+    if (!selectedTopic || !selectedCourse?.syllabus) return
 
+    setIsGeneratingQuiz(true)
+    try {
+      const questions = await generateQuizQuestions(selectedTopic, selectedCourse.syllabus)
+      setQuizQuestions(questions)
+      setShowQuizModal(true)
+    } catch (error) {
+      console.error('Error generating quiz:', error)
+      alert('Failed to generate quiz questions. Please try again.')
+    } finally {
+      setIsGeneratingQuiz(false)
+    }
+  }
+
+  if (selectedCourse) {
     return (
       <div className="h-full p-8 overflow-y-auto">
         {selectedTopic ? (
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-2xl font-bold text-primary">{selectedTopic.title}</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-primary">{selectedTopic.title}</h1>
               <Button
-                variant={selectedTopic.isCompleted ? "default" : "outline"}
+                variant="outline"
                 className="gap-2"
-                onClick={() => {
-                  const updatedTopic = {
-                    ...selectedTopic,
-                    isCompleted: !selectedTopic.isCompleted
-                  };
-                  setSelectedTopic(updatedTopic);
-                  
-                  // Update the course's syllabus with the new completion status
-                  if (selectedCourse) {
-                    const updatedCourse = {
-                      ...selectedCourse,
-                      syllabus: {
-                        ...selectedCourse.syllabus,
-                        sections: selectedCourse.syllabus.sections.map(section => ({
-                          ...section,
-                          subsections: section.subsections.map(subsection => ({
-                            ...subsection,
-                            topics: subsection.topics.map(topic => 
-                              topic.title === selectedTopic.title ? updatedTopic : topic
-                            )
-                          }))
-                        }))
-                      }
-                    };
-                    setSelectedCourse(updatedCourse);
-                  }
-                }}
+                onClick={handleStartQuiz}
+                disabled={isGeneratingQuiz}
               >
-                <CheckCircle className={cn(
-                  "h-4 w-4",
-                  selectedTopic.isCompleted ? "fill-primary-foreground" : "fill-none"
-                )} />
-                {selectedTopic.isCompleted ? "Completed" : "Mark as Completed"}
+                <Brain className="h-4 w-4" />
+                {isGeneratingQuiz ? "Generating Quiz..." : "Test Yourself"}
               </Button>
             </div>
             {selectedTopic.description && (
@@ -459,6 +446,18 @@ export default function MainContent({
             )}
 
             <ChatBot currentTopic={selectedTopic} />
+
+            {showQuizModal && (
+              <QuizModal
+                isOpen={showQuizModal}
+                onClose={() => {
+                  setShowQuizModal(false)
+                  setQuizQuestions([])
+                }}
+                topic={selectedTopic}
+                questions={quizQuestions}
+              />
+            )}
           </div>
         ) : (
           <div className="flex h-full items-center justify-center">
@@ -471,7 +470,6 @@ export default function MainContent({
               <h1 className="text-3xl font-bold tracking-tight text-primary mb-4">
                 Welcome to Your Learning Journey
               </h1>
-              {/* Remove the conditional check for summary since we only need audioPath */}
               {selectedCourse.audioPath && (
                 <div className="mb-8">
                   <AudioPlayer audioPath={selectedCourse.audioPath} />
@@ -506,7 +504,7 @@ export default function MainContent({
           </div>
         )}
       </div>
-    );
+    )
   }
 
   if (activeSection === "build") {
@@ -595,8 +593,6 @@ export default function MainContent({
                   onChange={(e) => setSearchText(e.target.value)}
                   className="flex-1 h-10 p-2 rounded-lg border bg-background resize-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                   placeholder="What modifications would you like to make to the course?"
-                  rows={1}
-                  disabled={isLoading}
                 />
                 <Button 
                   onClick={handleSubmit} 
