@@ -17,9 +17,11 @@ import {
 } from "lucide-react"
 import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
+import { VideoModal } from "@/components/ui/video-modal"
 
 export function LandingPage() {
   const [scrollY, setScrollY] = useState(0)
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -46,6 +48,13 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white overflow-hidden">
+      {/* Video Modal */}
+      <VideoModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+        videoId="HvCq66TEtL0"
+      />
+
       {/* Navigation - Glass Effect */}
       <nav 
         className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-white/90 border-b border-neutral-200/50"
@@ -151,8 +160,13 @@ export function LandingPage() {
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="px-8 h-14 rounded-full text-base border-2">
-                Watch Demo
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="px-8 h-14 rounded-full text-base border-2"
+                onClick={() => setIsVideoModalOpen(true)}
+              >
+                Watch Introduction
               </Button>
             </div>
           </motion.div>
