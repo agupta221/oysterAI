@@ -77,7 +77,7 @@ const LearningModes: React.FC<LearningModesProps> = ({
       id: 'ELI5', 
       label: 'ELI5', 
       description: 'Explanations remove the jargon and keep it simple',
-      color: 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 border-blue-200',
+      color: 'bg-amber-100/80 hover:bg-amber-200/80 text-amber-800 border-amber-200',
       icon: <Lightbulb className="h-5 w-5" />
     },
     { 

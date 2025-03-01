@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { ActiveSection } from "./sidebar"
 import { Button } from "@/components/ui/button"
 import { Search, Sparkles, MessageSquare, Wand2, Send, User, X, ArrowLeft, Play, FileText, BookOpen, Pause, Volume2, CheckCircle, ChevronRight, Brain } from "lucide-react"
@@ -229,6 +229,15 @@ export default function MainContent({
   const [quizQuestions, setQuizQuestions] = useState<any[]>([])
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false)
   const [isCourseCanvasOpen, setIsCourseCanvasOpen] = useState(false)
+  const [topicSearchQuery, setTopicSearchQuery] = useState("")
+  const [isTopicSearchLoading, setIsTopicSearchLoading] = useState(false)
+  const [topicQuestions, setTopicQuestions] = useState<Array<{
+    id: string;
+    question: string;
+    answer: string;
+    isStreaming: boolean;
+    isExpanded: boolean;
+  }>>([])
 
   // Handle authentication state
   useEffect(() => {
@@ -558,6 +567,114 @@ export default function MainContent({
     }
   }
 
+  const handleTopicSearch = async () => {
+    if (!topicSearchQuery.trim()) return
+    
+    setIsTopicSearchLoading(true)
+    
+    // Generate a unique ID for this question
+    const questionId = `q-${Date.now()}`
+    
+    // Add the question to the list immediately with streaming state
+    setTopicQuestions(prev => [
+      ...prev,
+      {
+        id: questionId,
+        question: topicSearchQuery,
+        answer: "",
+        isStreaming: true,
+        isExpanded: false // Don't auto-expand the new question
+      }
+    ])
+    
+    try {
+      // Call the API to get answers about the topic
+      console.log(`Searching for: ${topicSearchQuery} about ${selectedTopic?.title}`)
+      
+      // Make the actual API call to the chat endpoint
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          messages: [{ role: "user", content: topicSearchQuery }],
+          currentTopic: {
+            title: selectedTopic?.title || "Unknown Topic",
+            description: selectedTopic?.description || "No description available"
+          }
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to get answer: ${response.status} ${response.statusText}`);
+      }
+      
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
+      
+      // Handle streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedAnswer = "";
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+          
+          // Decode the chunk and append to accumulated answer
+          const chunk = decoder.decode(value, { stream: true });
+          console.log('Received chunk:', chunk);
+          accumulatedAnswer += chunk;
+          
+          // Update the question with the accumulated answer so far
+          setTopicQuestions(prev => 
+            prev.map(q => 
+              q.id === questionId 
+                ? { ...q, answer: accumulatedAnswer, isStreaming: true } 
+                : q
+            )
+          );
+        }
+        
+        // Final update to mark streaming as complete
+        setTopicQuestions(prev => 
+          prev.map(q => 
+            q.id === questionId 
+              ? { ...q, answer: accumulatedAnswer, isStreaming: false } 
+              : q
+          )
+        );
+      } catch (streamError) {
+        console.error('Error reading stream:', streamError);
+        throw streamError;
+      }
+      
+      // Clear the search query
+      setTopicSearchQuery("")
+    } catch (error) {
+      console.error('Error searching topic:', error)
+      
+      // Update the question with an error message
+      setTopicQuestions(prev => 
+        prev.map(q => 
+          q.id === questionId 
+            ? { 
+                ...q, 
+                answer: "Sorry, I couldn't find an answer to that question. Please try again.", 
+                isStreaming: false 
+              } 
+            : q
+        )
+      )
+    } finally {
+      setIsTopicSearchLoading(false)
+    }
+  }
+
   if (selectedCourse) {
     return (
       <div className="h-full p-8 overflow-y-auto">
@@ -589,6 +706,172 @@ export default function MainContent({
               userQuery=""
               courseId={selectedCourse.id}
             />
+            
+            {/* Visual connector between learning modes and search bar */}
+            <div className="relative mt-4 mb-1">
+              {/* Center vertical line */}
+              <div className="absolute left-1/2 -translate-x-1/2 top-0 w-px h-6 border-l border-dashed border-primary/40 animate-pulse-slow"></div>
+              
+              {/* Decorative node */}
+              <div className="absolute left-1/2 -translate-x-1/2 top-6 w-5 h-5 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center shadow-sm">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse"></div>
+              </div>
+              
+              {/* Horizontal connecting lines */}
+              <div className="absolute top-3 left-1/4 w-[50%] border-t border-dashed border-primary/30"></div>
+              
+              {/* Corner dots */}
+              <div className="absolute top-3 left-1/4 w-1.5 h-1.5 rounded-full bg-primary/20 border border-primary/30 -translate-x-1/2 -translate-y-1/2 animate-pulse-slow"></div>
+              <div className="absolute top-3 right-1/4 w-1.5 h-1.5 rounded-full bg-primary/20 border border-primary/30 translate-x-1/2 -translate-y-1/2 animate-pulse-slow"></div>
+            </div>
+            
+            {/* Topic Search Bar */}
+            <div className="mt-6 mb-12 relative">
+              {/* Decorative dotted lines connecting to the learning modes */}
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[90%] mx-auto">
+                <div className="relative h-6">
+                  {/* Vertical side lines */}
+                  <div className="absolute top-0 left-0 h-full border-l border-dashed border-primary/30"></div>
+                  <div className="absolute top-0 right-0 h-full border-r border-dashed border-primary/30"></div>
+                  
+                  {/* Bottom connecting line */}
+                  <div className="absolute bottom-0 left-0 w-full border-t border-dashed border-primary/30"></div>
+                  
+                  {/* Corner dots */}
+                  <div className="absolute bottom-0 left-0 w-1.5 h-1.5 rounded-full bg-primary/20 border border-primary/30 -translate-x-1/2 translate-y-1/2 animate-pulse-slow"></div>
+                  <div className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-primary/20 border border-primary/30 translate-x-1/2 translate-y-1/2 animate-pulse-slow"></div>
+                </div>
+              </div>
+              
+              <div className="group/wrapper">
+                <div className="relative w-full max-w-2xl mx-auto overflow-hidden rounded-xl bg-white/10 backdrop-blur-md shadow-sm transition-all hover:shadow-md border border-primary/30 group group-focus-within/wrapper:border-primary/50 group-focus-within/wrapper:shadow-md">
+                  {/* Glow effect */}
+                  <div className="absolute -inset-1 bg-primary/5 rounded-xl blur-md opacity-0 group-hover:opacity-70 transition-opacity duration-500"></div>
+                  
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 opacity-50 group-hover:opacity-70 transition-opacity duration-300"></div>
+                  <div className="absolute inset-0 bg-white/5 rounded-xl"></div>
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/10 to-transparent opacity-20"></div>
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/30 via-primary/10 to-primary/30 opacity-30 blur-sm rounded-xl group-hover:opacity-40 transition-opacity duration-300"></div>
+                  
+                  {/* Shimmer effect */}
+                  <div className="absolute inset-0 overflow-hidden">
+                    <div className="absolute -inset-[400%] top-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 rotate-45 translate-x-[0%] group-hover:translate-x-[100%] duration-2000"></div>
+                  </div>
+                  
+                  {/* Decorative dots at corners */}
+                  <div className="absolute top-0 left-0 w-1.5 h-1.5 rounded-full bg-primary/40 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-primary/40 translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute bottom-0 left-0 w-1.5 h-1.5 rounded-full bg-primary/40 -translate-x-1/2 translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-primary/40 translate-x-1/2 translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  
+                  <div className="relative flex items-center">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        placeholder={`Ask Oyster anything about ${selectedTopic.title}...`}
+                        className="w-full bg-transparent px-4 py-3 text-foreground placeholder:text-muted-foreground/70 focus:outline-none transition-all duration-300 focus:placeholder:text-primary/50"
+                        value={topicSearchQuery}
+                        onChange={(e) => setTopicSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleTopicSearch();
+                          }
+                        }}
+                      />
+                      {topicSearchQuery && (
+                        <button 
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground"
+                          onClick={() => setTopicSearchQuery("")}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    
+                    {/* Divider */}
+                    <div className="h-10 w-px bg-primary/20 mx-2"></div>
+                    
+                    <button 
+                      className="p-3 pr-4 text-primary/70 hover:text-primary transition-colors relative disabled:opacity-50 disabled:pointer-events-none"
+                      onClick={handleTopicSearch}
+                      disabled={isTopicSearchLoading}
+                      aria-label="Search"
+                    >
+                      {isTopicSearchLoading ? (
+                        <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                      ) : (
+                        <Search className="h-6 w-6" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Decorative elements below search bar */}
+              <div className="flex justify-center mt-3">
+                <div className="text-xs text-primary/60 flex items-center gap-2">
+                  <div className="w-16 h-px border-t border-dashed border-primary/30"></div>
+                  <div className="italic">Expand your understanding</div>
+                  <div className="w-16 h-px border-t border-dashed border-primary/30"></div>
+                </div>
+              </div>
+              
+              {/* Question Pills */}
+              {topicQuestions.length > 0 && (
+                <div className="mt-6 max-w-2xl mx-auto">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                    {topicQuestions.map((q) => (
+                      <div key={q.id} className="relative">
+                        <div 
+                          className={`
+                            rounded-full px-4 py-2 text-sm flex items-center gap-2 cursor-pointer transition-all w-full
+                            ${q.isExpanded 
+                              ? 'bg-primary/20 text-primary shadow-sm' 
+                              : 'bg-primary/10 text-primary/80 hover:bg-primary/15'}
+                          `}
+                          onClick={() => {
+                            setTopicQuestions(prev => 
+                              prev.map(item => 
+                                item.id === q.id 
+                                  ? { ...item, isExpanded: !item.isExpanded } 
+                                  : item
+                              )
+                            )
+                          }}
+                        >
+                          <div className="flex-shrink-0 w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center">
+                            {q.isStreaming ? (
+                              <div className="w-2 h-2 rounded-full bg-primary/60 animate-pulse"></div>
+                            ) : (
+                              <div className="w-2 h-2 rounded-full bg-primary/60"></div>
+                            )}
+                          </div>
+                          <span className="truncate flex-1">{q.question}</span>
+                          <ChevronRight className={`h-4 w-4 flex-shrink-0 transition-transform ${q.isExpanded ? 'rotate-90' : ''}`} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Expanded Answers - shown below the grid of pills */}
+                  {topicQuestions.filter(q => q.isExpanded).map((q) => (
+                    <div key={`answer-${q.id}`} className="mb-4">
+                      <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-primary/20 p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="mb-3 font-medium text-primary">{q.question}</div>
+                        {q.isStreaming ? (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="w-4 h-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
+                            <span>Generating answer...</span>
+                          </div>
+                        ) : (
+                          <div className="text-muted-foreground whitespace-pre-wrap">{q.answer}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             
             {selectedTopic.resources && selectedTopic.resources.length > 0 && (
               <div className="mt-12">
