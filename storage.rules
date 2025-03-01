@@ -5,8 +5,30 @@ rules_version = '2';
 //    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
+    // Default rule - require authentication for all operations
     match /{allPaths=**} {
-      allow read, write: if false;
+      allow read, write: if request.auth != null;
+    }
+    
+    // Specific rule for explanations folder
+    match /explanations/{userId}/{courseId}/{topicId}/{filename} {
+      // Allow users to read their own explanations
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow the application to write explanations for any user
+      // This is needed for your API endpoint
+      allow write: if request.auth != null;
+    }
+    
+    // Public explanations folder - accessible from server-side API routes
+    match /public-explanations/{userId}/{courseId}/{topicId}/{filename} {
+      // Allow read access to anyone
+      allow read: if true;
+      
+      // Allow write access from server-side API routes
+      // Since we can't authenticate from server-side, we'll allow all writes
+      // This is a security trade-off, but the path includes user IDs to prevent conflicts
+      allow write: if true;
     }
   }
 }

@@ -24,6 +24,7 @@ import { generateQuizQuestions } from "@/lib/quiz-generator"
 import { CapstoneDisplay } from "@/components/ui/capstone-display"
 import type { CapstoneProject } from "@/components/ui/course-tile"
 import Sidebar from "@/components/sidebar"
+import LearningModes from "./LearningModes"
 
 const courseSuggestions = [
   {
@@ -438,11 +439,25 @@ export default function MainContent({
               <p className="text-muted-foreground mb-8">{selectedTopic.description}</p>
             )}
             
-            {selectedTopic.resources && (
-              <div className="space-y-4 mt-4">
-                {selectedTopic.resources.map((resource, index) => (
-                  <ResourceCard key={index} resource={resource} />
-                ))}
+            <LearningModes 
+              key={`learning-modes-${selectedTopic.title.replace(/\s+/g, '-').toLowerCase()}`}
+              onModeSelect={(mode) => {
+                console.log('Selected mode:', mode);
+              }} 
+              currentTopic={selectedTopic}
+              syllabus={selectedCourse.syllabus}
+              userQuery=""
+              courseId={selectedCourse.id}
+            />
+            
+            {selectedTopic.resources && selectedTopic.resources.length > 0 && (
+              <div className="mt-12">
+                <h2 className="text-2xl font-bold text-primary mb-6">Dive Deeper</h2>
+                <div className="space-y-4">
+                  {selectedTopic.resources.map((resource, index) => (
+                    <ResourceCard key={index} resource={resource} />
+                  ))}
+                </div>
               </div>
             )}
 
