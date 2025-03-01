@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Book, Clock, GraduationCap, Layout, Settings, Target, ArrowLeft } from "lucide-react"
+import { Book, Clock, GraduationCap, Layout, Settings, Target, ArrowLeft, Grid } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Course, CapstoneProject } from "@/components/ui/course-tile"
 import { Syllabus } from "@/components/ui/syllabus"
@@ -75,9 +75,13 @@ export default function Sidebar({ onSectionClick, activeSection, selectedCourse,
               Go back to your courses
             </Button>
             
-            <h1 className="text-xl font-semibold text-primary">
-              {selectedCourse.title}
+            <h1 className="text-xl font-semibold text-primary mb-2">
+              Course Syllabus
             </h1>
+            
+            {/* Removed Course Canvas Button */}
+            
+            {/* Removed Course Canvas Component */}
           </div>
           {selectedCourse.syllabus ? (
             <Syllabus 

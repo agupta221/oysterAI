@@ -15,7 +15,7 @@ import { enrichSyllabusWithResources } from "@/lib/course-generator"
 import type { VideoResource } from "@/lib/serpapi"
 import type { Topic } from "@/lib/openai"
 import { AudioPlayer } from "@/components/ui/audio-player"
-import { addCourse, getUserCourses, uploadCourseAudio } from "@/lib/firebase/courseUtils"
+import { addCourse, getUserCourses, uploadCourseAudio, getCourseAudioUrl } from "@/lib/firebase/courseUtils"
 import { auth } from "@/lib/firebase/firebase"
 import { onAuthStateChanged } from "firebase/auth"
 import { ChatBot } from "@/components/ui/chat-bot"
@@ -25,6 +25,7 @@ import { CapstoneDisplay } from "@/components/ui/capstone-display"
 import type { CapstoneProject } from "@/components/ui/course-tile"
 import Sidebar from "@/components/sidebar"
 import LearningModes from "./LearningModes"
+import CourseCanvas from "./course-canvas"
 
 const courseSuggestions = [
   {
@@ -66,6 +67,144 @@ interface MainContentProps {
   setSelectedCapstone: (capstone: CapstoneProject | null) => void;
 }
 
+// Custom audio component for the welcome section
+const WelcomeAudio: React.FC<{ audioPath: string }> = ({ audioPath }) => {
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const fetchAudioUrl = async () => {
+      try {
+        setIsLoading(true);
+        const url = await getCourseAudioUrl(audioPath);
+        setAudioUrl(url);
+      } catch (error) {
+        console.error('Error fetching audio URL:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchAudioUrl();
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, [audioPath]);
+
+  const togglePlayPause = () => {
+    if (!audioRef.current || isLoading) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      const current = audioRef.current.currentTime;
+      const total = audioRef.current.duration;
+      setProgress(current / total * 100);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  // Format time in MM:SS format
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="mb-12 inline-block relative">
+      <div 
+        className={`flex items-center justify-center w-32 h-32 mx-auto rounded-full bg-primary/10 cursor-pointer transition-all duration-300 hover:bg-primary/20 relative ${isLoading ? 'opacity-70' : ''} ${isPlaying ? 'ring-4 ring-primary/30' : ''}`}
+        onClick={togglePlayPause}
+      >
+        {/* Progress circle */}
+        {!isLoading && duration > 0 && (
+          <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
+            <circle 
+              cx="50" 
+              cy="50" 
+              r="48" 
+              fill="none" 
+              stroke="rgba(0,0,0,0.05)" 
+              strokeWidth="2"
+            />
+            <circle 
+              cx="50" 
+              cy="50" 
+              r="48" 
+              fill="none" 
+              stroke="rgba(var(--primary-rgb), 0.3)" 
+              strokeWidth="2"
+              strokeDasharray="301.59"
+              strokeDashoffset={301.59 - (301.59 * progress / 100)}
+              strokeLinecap="round"
+            />
+          </svg>
+        )}
+        
+        <div className={`w-16 h-16 rounded-full bg-primary/80 ring-8 ring-primary/20 transition-all duration-300 ${isPlaying ? 'scale-[0.95] ring-primary/30' : ''}`} />
+        {isPlaying && (
+          <div className="absolute inset-0 rounded-full animate-ping-slow bg-primary/10 z-[-1]"></div>
+        )}
+        
+        {/* Play/Pause button - always visible */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          {isLoading ? (
+            <div className="w-10 h-10 text-white animate-spin rounded-full border-3 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+          ) : (
+            <div className="w-10 h-10 text-white">
+              {isPlaying ? (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-10 h-10">
+                  <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-10 h-10">
+                  <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Audio instruction text - always visible */}
+      <div className="mt-3 text-sm text-muted-foreground text-center">
+        {isLoading ? 'Loading audio...' : isPlaying ? `${formatTime(audioRef.current?.currentTime || 0)} / ${formatTime(duration)}` : 'Click to hear course overview'}
+      </div>
+      
+      {audioUrl && (
+        <audio 
+          ref={audioRef}
+          src={audioUrl}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+        />
+      )}
+    </div>
+  );
+};
+
 export default function MainContent({ 
   activeSection, 
   setActiveSection, 
@@ -89,6 +228,7 @@ export default function MainContent({
   const [showQuizModal, setShowQuizModal] = useState(false)
   const [quizQuestions, setQuizQuestions] = useState<any[]>([])
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false)
+  const [isCourseCanvasOpen, setIsCourseCanvasOpen] = useState(false)
 
   // Handle authentication state
   useEffect(() => {
@@ -452,7 +592,7 @@ export default function MainContent({
             
             {selectedTopic.resources && selectedTopic.resources.length > 0 && (
               <div className="mt-12">
-                <h2 className="text-2xl font-bold text-primary mb-6">Dive Deeper</h2>
+                <h2 className="text-2xl font-bold text-primary mb-6">Dive deeper with some curated resources</h2>
                 <div className="space-y-4">
                   {selectedTopic.resources.map((resource, index) => (
                     <ResourceCard key={index} resource={resource} />
@@ -461,7 +601,38 @@ export default function MainContent({
               </div>
             )}
 
-            <ChatBot currentTopic={selectedTopic} />
+            {/* Floating button to open CourseCanvas */}
+            <div className="fixed bottom-4 right-4 z-50">
+              <Button
+                onClick={() => setIsCourseCanvasOpen(true)}
+                size="icon"
+                className="h-14 w-14 rounded-full shadow-lg bg-gradient-to-br from-primary/90 to-primary hover:from-primary hover:to-primary/90 transition-all duration-300 group relative"
+                title="Oyster Canvas"
+              >
+                <div className="relative w-10 h-10">
+                  {/* Oyster shell design */}
+                  <div className="absolute inset-0 bg-primary-foreground/20 rounded-full transform -rotate-45">
+                    <div className="absolute inset-1 bg-gradient-to-br from-primary-foreground to-primary-foreground/80 rounded-full">
+                      {/* Pearl */}
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-lg" />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Tooltip - repositioned to be centered above the button with text on two lines */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-black/80 text-white px-3 py-1.5 rounded-md text-sm text-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                  <div>Oyster</div>
+                  <div>Canvas</div>
+                </div>
+              </Button>
+            </div>
+
+            {/* CourseCanvas Component */}
+            <CourseCanvas 
+              isOpen={isCourseCanvasOpen} 
+              onClose={() => setIsCourseCanvasOpen(false)} 
+              courseId={selectedCourse?.id || ''}
+            />
 
             {showQuizModal && (
               <QuizModal
@@ -480,19 +651,18 @@ export default function MainContent({
         ) : (
           <div className="flex h-full items-center justify-center">
             <div className="max-w-2xl text-center">
-              <div className="mb-8 inline-block">
-                <div className="flex items-center justify-center w-20 h-20 mx-auto rounded-full bg-primary/10">
-                  <div className="w-10 h-10 rounded-full bg-primary/80 ring-8 ring-primary/20" />
+              {selectedCourse.audioPath ? (
+                <WelcomeAudio audioPath={selectedCourse.audioPath} />
+              ) : (
+                <div className="mb-12 inline-block">
+                  <div className="flex items-center justify-center w-32 h-32 mx-auto rounded-full bg-primary/10">
+                    <div className="w-16 h-16 rounded-full bg-primary/80 ring-8 ring-primary/20" />
+                  </div>
                 </div>
-              </div>
+              )}
               <h1 className="text-3xl font-bold tracking-tight text-primary mb-4">
                 Welcome to Your Learning Journey
               </h1>
-              {selectedCourse.audioPath && (
-                <div className="mb-8">
-                  <AudioPlayer audioPath={selectedCourse.audioPath} />
-                </div>
-              )}
               <div className="space-y-4 text-muted-foreground">
                 <p className="text-lg">
                   Your course curriculum is now available in the sidebar. Here's how to get started:
@@ -514,7 +684,7 @@ export default function MainContent({
                     <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                       <div className="w-2 h-2 rounded-full bg-primary/60" />
                     </div>
-                    <p>Click on individual topics to access the learning materials and begin your studies</p>
+                    <p>Click on individual topics to access the learning materials and begin learning</p>
                   </div>
                 </div>
               </div>

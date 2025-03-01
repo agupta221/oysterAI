@@ -79,6 +79,10 @@ const config = {
           "0%, 100%": { opacity: "0.5" },
           "50%": { opacity: "0.8" },
         },
+        "ping-slow": {
+          "0%": { transform: "scale(1)", opacity: "0.8" },
+          "75%, 100%": { transform: "scale(1.5)", opacity: "0" },
+        },
         "spin-very-slow": {
           from: { transform: "rotate(0deg)" },
           to: { transform: "rotate(360deg)" },
@@ -89,6 +93,7 @@ const config = {
         "accordion-up": "accordion-up 0.2s ease-out",
         "float": "float 6s ease-in-out infinite",
         "pulse-slow": "pulse-slow 4s ease-in-out infinite",
+        "ping-slow": "ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite",
         "spin-very-slow": "spin-very-slow 30s linear infinite",
       },
       backgroundImage: {
