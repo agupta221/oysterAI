@@ -187,7 +187,7 @@ const WelcomeAudio: React.FC<{ audioPath: string }> = ({ audioPath }) => {
       
       {/* Audio instruction text - always visible */}
       <div className="mt-3 text-sm text-muted-foreground text-center">
-        {isLoading ? 'Loading audio...' : isPlaying ? `${formatTime(audioRef.current?.currentTime || 0)} / ${formatTime(duration)}` : 'Click to hear course overview'}
+        {isLoading ? 'Loading audio...' : isPlaying ? `${formatTime(audioRef.current?.currentTime || 0)} / ${formatTime(duration)}` : 'Click hear for a quick overview'}
       </div>
       
       {audioUrl && (
@@ -948,14 +948,14 @@ export default function MainContent({
               </h1>
               <div className="space-y-4 text-muted-foreground">
                 <p className="text-lg">
-                  Your course curriculum is now available in the sidebar. Here's how to get started:
+                  Your learning roadmap is now available in the sidebar. Here's how to get started:
                 </p>
                 <div className="text-left max-w-lg mx-auto space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                       <div className="w-2 h-2 rounded-full bg-primary/60" />
                     </div>
-                    <p>Explore the course sections by clicking the expand icons in the sidebar</p>
+                    <p>Explore the learning space sections by clicking the expand icons in the sidebar</p>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -967,7 +967,7 @@ export default function MainContent({
                     <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                       <div className="w-2 h-2 rounded-full bg-primary/60" />
                     </div>
-                    <p>Click on individual topics to access the learning materials and begin learning</p>
+                    <p>Click on individual topics to access the learning materials and begin your exploration</p>
                   </div>
                 </div>
               </div>
@@ -1042,7 +1042,7 @@ export default function MainContent({
                             onClick={() => generateCourse(message.syllabus!)}
                           >
                             <Wand2 className="h-4 w-4" />
-                            Generate Course
+                            Generate Learning Space
                           </Button>
                         </div>
                       </>
@@ -1096,7 +1096,7 @@ export default function MainContent({
               What would you like to learn today?
             </h1>
             <p className="text-lg text-muted-foreground mb-8">
-              Describe your learning goals in detail, and we'll help you create the perfect course.
+              Describe your learning goals in detail, and we'll help create a space that works for you.
             </p>
           </div>
           
@@ -1122,7 +1122,7 @@ export default function MainContent({
               ) : (
                 <>
                   <Search className="mr-2 h-5 w-5" />
-                  Crack open new possibilities!
+                  Crack open new possibilities
                 </>
               )}
             </Button>

@@ -19,7 +19,7 @@ export function SiteFooter() {
               OysterAI
             </Link>
             <p className="mt-3 text-sm text-white/80">
-              Personalized learning, limitless potential. Transforming education with AI-powered personalization.
+              Personalized learning, limitless potential.
             </p>
           </div>
           <div>

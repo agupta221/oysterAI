@@ -30,13 +30,13 @@ interface SidebarProps {
 const sidebarSections = [
   {
     id: "build" as const,
-    title: "Build A Course",
-    description: "Define your learning goals",
+    title: "Build A Learning Space",
+    description: "Define your goals & interests",
     icon: Layout,
   },
   {
     id: "courses" as const,
-    title: "Your Courses",
+    title: "Your Learning Spaces",
     description: "Explore your creations",
     icon: Target,
   },
@@ -72,7 +72,7 @@ export default function Sidebar({ onSectionClick, activeSection, selectedCourse,
               onClick={handleBackClick}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Go back to your courses
+              Go back to your learning spaces
             </Button>
             
             <h1 className="text-xl font-semibold text-primary mb-2">

@@ -43,7 +43,7 @@ export function CourseTile({ course }: CourseTileProps) {
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
             <div className="w-6 h-6 rounded-full bg-primary/80 ring-6 ring-primary/20 animate-pulse" />
           </div>
-          <p className="text-primary font-medium text-sm">Generating Course...</p>
+          <p className="text-primary font-medium text-sm">Generating Learning Space...</p>
         </div>
       </Card>
     )

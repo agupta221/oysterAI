@@ -94,7 +94,7 @@ export function LandingPage() {
               href="#courses" 
               className="text-sm font-medium text-neutral-800 hover:text-primary transition-colors"
             >
-              Courses
+              Learning Spaces
             </Link>
             <Link 
               href="#" 
@@ -142,7 +142,7 @@ export function LandingPage() {
             transition={{ duration: 0.8 }}
           >
             <div className="inline-flex items-center px-3 py-1 mb-6 rounded-full bg-primary/10 text-primary text-sm font-medium">
-              <span className="mr-2">🚀</span> Redefining personal education
+              <span className="mr-2">🚀</span> Reimagining Learning in an AI-First World
             </div>
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-8 leading-[1.1]">
               <span className="bg-gradient-to-r from-primary via-purple-500 to-primary bg-clip-text text-transparent">
@@ -151,7 +151,7 @@ export function LandingPage() {
               <br />with Oyster
             </h1>
             <p className="text-xl md:text-2xl text-neutral-600 dark:text-neutral-300 mb-10 max-w-3xl mx-auto leading-relaxed">
-              Create personalized courses, discover curated resources, and master any subject with our AI-powered education platform.
+              Create personalized learning spaces, discover curated resources, and explore your interests with unbridled curiosity.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/dashboard">
@@ -246,7 +246,7 @@ export function LandingPage() {
               Why Choose Oyster?
             </h2>
             <p className="text-lg text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
-              Our AI-powered education platform transforms how you learn with personalized content and cutting-edge technology.
+              Our AI-powered platform creates a new exploration paradigm that provides learners with both a structured foundation as well as the room to roam with unbridled curiosity
             </p>
           </motion.div>
           
@@ -260,14 +260,14 @@ export function LandingPage() {
             {[
               {
                 icon: Sparkles,
-                title: "Personalized Courses",
-                description: "Intelligent course generation tailored to your goals and interests with adaptive learning paths.",
+                title: "Personalized Roadmaps",
+                description: "Intelligent learning roadmaps tailored to your goals and interests with adaptive learning paths.",
                 color: "from-blue-500 to-indigo-600"
               },
               {
                 icon: Target,
-                title: "Learning Agents",
-                description: "AI agents that adapt to your learning style and help you master concepts at your own pace.",
+                title: "Thought Studios",
+                description: "Limitless canvas to build mind maps, consolidate learning, and ideate freely.",
                 color: "from-green-500 to-emerald-600"
               },
               {
@@ -279,7 +279,7 @@ export function LandingPage() {
               {
                 icon: Zap,
                 title: "Multi-Modal Learning",
-                description: "Engaging content across audio, video, and text formats to suit all learning preferences.",
+                description: "Engaging customizable content across audio, video, and text formats to suit all learning preferences.",
                 color: "from-purple-500 to-pink-600"
               }
             ].map((feature, index) => (
@@ -323,13 +323,13 @@ export function LandingPage() {
             transition={{ duration: 0.8 }}
           >
             <div className="inline-flex items-center px-3 py-1 mb-6 rounded-full bg-primary/10 text-primary text-sm font-medium">
-              <BookOpen className="mr-2 h-4 w-4" /> Learn Anything
+              <BookOpen className="mr-2 h-4 w-4" /> Explore Anything
             </div>
             <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-              Courses Our Users Have Generated
+              Learning Spaces Our Users Have Generated
             </h2>
             <p className="text-lg text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
-              Discover the diverse range of courses created by our community. From technical skills to creative pursuits, the possibilities are endless.
+              Discover the diverse range of learning spaces created by our community. From technical skills to creative pursuits, the possibilities are endless.
             </p>
           </motion.div>
           
@@ -343,29 +343,29 @@ export function LandingPage() {
             {[
               {
                 title: "Mobile App Development with Flutter",
-                prompt: "I am a senior in college studying computer science - I've heard a lot about app development but haven't tried it yet. Create a course that teaches me about Flutter and focus the content on building an app to help students meet new people on campus.",
+                prompt: "I am a senior in college studying computer science - I've heard a lot about app development but haven't tried it yet. Create a learning roadmap that teaches me about Flutter and focus the content on building an app to help students meet new people on campus.",
                 topics: ["Flutter", "Dart", "UI Design", "Firebase"],
                 color: "from-blue-500 to-cyan-400",
                 emoji: "📱"
               },
               {
-                title: "Machine Learning for Climate Science",
-                prompt: "I'm an environmental scientist looking to apply machine learning to climate data. I need a course that covers Python, data analysis, and ML techniques specifically for processing and analyzing climate datasets.",
-                topics: ["Python", "ML", "Data Analysis", "Climate Data"],
+                title: "Early Stage Venture Capital",
+                prompt: "I'm a consultant looking to pivot into venture capital. I want to learn everything about how VC firms make investments in early stage consumer AI startups",
+                topics: ["Early stage", "VC", "Career Pivot", "Consulting"],
                 color: "from-green-500 to-emerald-400",
-                emoji: "🌍"
+                emoji: "📊"
               },
               {
-                title: "Game Development with Unity",
-                prompt: "I'm an artist with no coding experience but I want to create my own indie games. I need a course that starts from the basics and teaches me Unity and C# while focusing on 2D game development.",
-                topics: ["Unity", "C#", "2D Graphics", "Game Design"],
+                title: "Prompt engineering and working with LLMs",
+                prompt: "I'm an artist with no coding experience but I want to learn how to work with LLMs to create art. Help me learn about the best ways to prompt these AI models to produce beautiful art.",
+                topics: ["Prompt engineering", "LLMs", "Art", "Creative coding"],
                 color: "from-purple-500 to-indigo-400",
-                emoji: "🎮"
+                emoji: "🎨"
               },
               {
-                title: "Personal Finance & Investment",
-                prompt: "I'm 25 and just started my first job. I want to learn about personal finance, from budgeting to investing in stocks and crypto. Create a comprehensive course for young professionals.",
-                topics: ["Budgeting", "Stocks", "Crypto", "Tax Planning"],
+                title: "Stock Market Fundamentals",
+                prompt: "I'm 25 and just started my first job and have no background in finance. I want to learn about the Indian stock market, from the origin story of the Bombay Stock Exchange to the current state of the market.",
+                topics: ["Investing", "Stocks", "History", "Markets"],
                 color: "from-amber-500 to-yellow-400",
                 emoji: "💰"
               }
@@ -428,7 +428,7 @@ export function LandingPage() {
           >
             <Link href="/dashboard">
               <Button variant="outline" size="lg" className="rounded-full px-8 border-2">
-                Explore All Courses <ExternalLink className="ml-2 h-4 w-4" />
+                Explore All Learning Spaces <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
             </Link>
           </motion.div>
@@ -455,7 +455,7 @@ export function LandingPage() {
               Ready to Transform How You Learn?
             </h2>
             <p className="text-xl text-white/80 mb-10 max-w-2xl mx-auto">
-              Join thousands of learners who have already discovered the power of personalized AI education.
+              Join our community of learners who have already discovered the power of personalized AI exploration.
             </p>
             <Link href="/dashboard">
               <Button size="lg" className="bg-white text-primary hover:bg-white/90 px-8 h-14 rounded-full text-base font-medium">
