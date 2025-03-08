@@ -26,6 +26,7 @@ import type { CapstoneProject } from "@/components/ui/course-tile"
 import Sidebar from "@/components/sidebar"
 import LearningModes from "./LearningModes"
 import CourseCanvas from "./course-canvas"
+import { QuizCustomizationModal, QuizCustomizationOptions } from "@/components/ui/quiz-customization-modal"
 
 const courseSuggestions = [
   {
@@ -226,6 +227,7 @@ export default function MainContent({
   const [activeVideo, setActiveVideo] = useState<VideoResource | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [showQuizModal, setShowQuizModal] = useState(false)
+  const [showQuizCustomizationModal, setShowQuizCustomizationModal] = useState(false)
   const [quizQuestions, setQuizQuestions] = useState<any[]>([])
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false)
   const [isCourseCanvasOpen, setIsCourseCanvasOpen] = useState(false)
@@ -551,12 +553,20 @@ export default function MainContent({
     );
   };
 
-  const handleStartQuiz = async () => {
+  const handleStartQuiz = () => {
+    if (!selectedTopic || !selectedCourse?.syllabus) return
+    setShowQuizCustomizationModal(true)
+  }
+
+  const handleGenerateQuiz = async (options: QuizCustomizationOptions) => {
     if (!selectedTopic || !selectedCourse?.syllabus) return
 
+    setShowQuizCustomizationModal(false)
     setIsGeneratingQuiz(true)
+    
     try {
-      const questions = await generateQuizQuestions(selectedTopic, selectedCourse.syllabus)
+      // Pass the customization options to the generateQuizQuestions function
+      const questions = await generateQuizQuestions(selectedTopic, selectedCourse.syllabus, options)
       setQuizQuestions(questions)
       setShowQuizModal(true)
     } catch (error) {
@@ -917,6 +927,15 @@ export default function MainContent({
               courseId={selectedCourse?.id || ''}
             />
 
+            {showQuizCustomizationModal && (
+              <QuizCustomizationModal
+                isOpen={showQuizCustomizationModal}
+                onClose={() => setShowQuizCustomizationModal(false)}
+                topic={selectedTopic}
+                onGenerateQuiz={handleGenerateQuiz}
+              />
+            )}
+
             {showQuizModal && (
               <QuizModal
                 isOpen={showQuizModal}
@@ -926,6 +945,7 @@ export default function MainContent({
                 }}
                 topic={selectedTopic}
                 questions={quizQuestions}
+                timeLimit={null}
               />
             )}
           </div>

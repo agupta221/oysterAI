@@ -1,5 +1,6 @@
 import type { Topic } from '@/lib/openai'
 import type { Syllabus } from '@/lib/openai'
+import type { QuizCustomizationOptions } from '@/components/ui/quiz-customization-modal'
 
 interface Question {
   text: string
@@ -9,14 +10,18 @@ interface Question {
   difficulty: 'easy' | 'medium' | 'hard'
 }
 
-export async function generateQuizQuestions(topic: Topic, syllabus: Syllabus): Promise<Question[]> {
+export async function generateQuizQuestions(
+  topic: Topic, 
+  syllabus: Syllabus,
+  options?: QuizCustomizationOptions
+): Promise<Question[]> {
   try {
     const response = await fetch('/api/generate-quiz', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ topic, syllabus }),
+      body: JSON.stringify({ topic, syllabus, options }),
     })
 
     if (!response.ok) {
