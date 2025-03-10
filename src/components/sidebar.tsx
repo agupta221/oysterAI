@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import type { Course, CapstoneProject } from "@/components/ui/course-tile"
 import { Syllabus } from "@/components/ui/syllabus"
 import { Button } from "@/components/ui/button"
-import type { Topic } from "@/lib/openai"
+import type { Topic, TopicQuestion } from "@/lib/openai"
 import type { VideoResource } from "@/lib/serpapi"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { AuthStatus } from "@/components/auth/auth-status"
@@ -14,6 +14,7 @@ import { updateCourse } from "@/lib/firebase/courseUtils"
 
 interface TopicWithResources extends Topic {
   resources?: VideoResource[];
+  questions?: TopicQuestion[];
 }
 
 export type ActiveSection = "build" | "courses" | "preferences" | null
@@ -76,7 +77,7 @@ export default function Sidebar({ onSectionClick, activeSection, selectedCourse,
             </Button>
             
             <h1 className="text-xl font-semibold text-primary mb-2">
-              Course Syllabus
+              Learning Space
             </h1>
             
             {/* Removed Course Canvas Button */}

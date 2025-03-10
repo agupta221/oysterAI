@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { generateCourseSummary, generateCapstoneProject } from "@/lib/openai";
+import { generateCourseSummary, generateCapstoneProject, generateTopicQuestions } from "@/lib/openai";
 import { generateSpeech } from "@/lib/google-tts";
 import type { VideoResource } from "@/lib/serpapi";
-import type { Syllabus, Section, Subsection, Topic } from "@/lib/openai";
+import type { Syllabus, Section, Subsection, Topic, TopicQuestion } from "@/lib/openai";
 import { headers } from "next/headers";
 
 interface TopicWithResources extends Topic {
   resources: VideoResource[];
+  questions?: TopicQuestion[];
 }
 
 interface SubsectionWithResources extends Subsection {
@@ -54,33 +55,75 @@ export async function POST(request: Request) {
           section.subsections.map(async (subsection: Subsection) => {
             const enrichedTopics = await Promise.all(
               subsection.topics.map(async (topic: Topic) => {
-                if (!hasSerpApiKey) {
-                  return { ...topic, resources: [] };
+                // Create an array to hold all parallel promises
+                const promises = [];
+                
+                // Promise for fetching video resources
+                let resourcesPromise = Promise.resolve([]);
+                if (hasSerpApiKey) {
+                  resourcesPromise = (async () => {
+                    try {
+                      const queryParams = new URLSearchParams({
+                        searchQuery: topic.searchQuery,
+                      }).toString();
+
+                      const response = await fetch(`${baseUrl}/api/serpapi?${queryParams}`, {
+                        method: 'GET',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                      });
+
+                      if (!response.ok) {
+                        console.error(`Failed to fetch resources for topic: ${topic.title}`);
+                        return [];
+                      }
+
+                      const { resources } = await response.json();
+                      return resources;
+                    } catch (error) {
+                      console.error(`Error fetching resources for topic: ${topic.title}`, error);
+                      return [];
+                    }
+                  })();
                 }
-
-                try {
-                  const queryParams = new URLSearchParams({
-                    searchQuery: topic.searchQuery,
-                  }).toString();
-
-                  const response = await fetch(`${baseUrl}/api/serpapi?${queryParams}`, {
-                    method: 'GET',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                  });
-
-                  if (!response.ok) {
-                    console.error(`Failed to fetch resources for topic: ${topic.title}`);
-                    return { ...topic, resources: [] };
+                promises.push(resourcesPromise);
+                
+                // Promise for generating questions
+                const questionsPromise = (async () => {
+                  try {
+                    console.log(`Starting question generation for topic: ${topic.title}`);
+                    const result = await generateTopicQuestions(topic, syllabus, userRequest);
+                    console.log(`Completed question generation for topic: ${topic.title} with ${result.questions.length} questions`);
+                    return result.questions;
+                  } catch (error) {
+                    console.error(`Error generating questions for topic: ${topic.title}`, error);
+                    return [];
                   }
-
-                  const { resources } = await response.json();
-                  return { ...topic, resources };
-                } catch (error) {
-                  console.error(`Error fetching resources for topic: ${topic.title}`, error);
-                  return { ...topic, resources: [] };
+                })();
+                promises.push(questionsPromise);
+                
+                // Wait for all promises to resolve
+                const [resources, questions] = await Promise.all(promises);
+                
+                // Log the structure of the enriched topic
+                console.log(`Enriched topic: ${topic.title}`);
+                console.log(`- Resources: ${resources.length}`);
+                console.log(`- Questions: ${questions.length}`);
+                
+                if (questions.length > 0) {
+                  console.log('- Sample question structure:');
+                  console.log(`  - Question: ${questions[0].question}`);
+                  console.log(`  - Answer: ${questions[0].answer.substring(0, 50)}...`);
+                  console.log(`  - Search Query: ${questions[0].searchQuery}`);
                 }
+                
+                // Return the enriched topic
+                return { 
+                  ...topic, 
+                  resources,
+                  questions 
+                };
               })
             );
 
@@ -133,6 +176,33 @@ export async function POST(request: Request) {
 
     // Convert audio data to base64 if available
     const base64Audio = audioData ? Buffer.from(audioData).toString('base64') : null;
+
+    // Log the structure of the enriched syllabus
+    console.log('Enriched syllabus structure:');
+    console.log(`- Sections: ${enrichedSyllabus.sections.length}`);
+    
+    let totalSubsections = 0;
+    let totalTopics = 0;
+    let totalQuestions = 0;
+    let totalResources = 0;
+    
+    enrichedSyllabus.sections.forEach(section => {
+      totalSubsections += section.subsections.length;
+      
+      section.subsections.forEach(subsection => {
+        totalTopics += subsection.topics.length;
+        
+        subsection.topics.forEach(topic => {
+          totalResources += topic.resources.length;
+          totalQuestions += topic.questions?.length || 0;
+        });
+      });
+    });
+    
+    console.log(`- Total subsections: ${totalSubsections}`);
+    console.log(`- Total topics: ${totalTopics}`);
+    console.log(`- Total resources: ${totalResources}`);
+    console.log(`- Total questions: ${totalQuestions}`);
 
     return NextResponse.json({
       syllabus: enrichedSyllabus,

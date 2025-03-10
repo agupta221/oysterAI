@@ -3,17 +3,16 @@
 import React, { useState, useRef, useEffect } from "react"
 import { ActiveSection } from "./sidebar"
 import { Button } from "@/components/ui/button"
-import { Search, Sparkles, MessageSquare, Wand2, Send, User, X, ArrowLeft, Play, FileText, BookOpen, Pause, Volume2, CheckCircle, ChevronRight, Brain } from "lucide-react"
+import { Search, Sparkles, MessageSquare, Wand2, Send, User, X, ArrowLeft, Play, FileText, BookOpen, Pause, Volume2, CheckCircle, ChevronRight, Brain, Youtube, ExternalLink, ChevronLeft, Lightbulb, Briefcase, Microscope, Lock, ChevronDown, HelpCircle } from "lucide-react"
 import { Syllabus } from "@/components/ui/syllabus"
 import { LoadingOverlay } from "@/components/ui/loading-overlay"
 import { cn } from "@/lib/utils"
-import type { Syllabus as SyllabusType } from "@/lib/openai"
+import type { Syllabus as SyllabusType, Section, Subsection, Topic, TopicQuestion } from "@/lib/openai"
 import { CoursesView } from "@/components/courses-view"
 import { v4 as uuidv4 } from "uuid"
 import type { Course } from "@/components/ui/course-tile"
 import { enrichSyllabusWithResources } from "@/lib/course-generator"
 import type { VideoResource } from "@/lib/serpapi"
-import type { Topic } from "@/lib/openai"
 import { AudioPlayer } from "@/components/ui/audio-player"
 import { addCourse, getUserCourses, uploadCourseAudio, getCourseAudioUrl } from "@/lib/firebase/courseUtils"
 import { auth } from "@/lib/firebase/firebase"
@@ -22,10 +21,9 @@ import { ChatBot } from "@/components/ui/chat-bot"
 import { QuizModal } from "@/components/ui/quiz-modal"
 import { generateQuizQuestions } from "@/lib/quiz-generator"
 import { CapstoneDisplay } from "@/components/ui/capstone-display"
-import type { CapstoneProject } from "@/components/ui/course-tile"
+import type { CapstoneProject } from "@/lib/openai"
+import CourseCanvas from "@/components/course-canvas"
 import Sidebar from "@/components/sidebar"
-import LearningModes from "./LearningModes"
-import CourseCanvas from "./course-canvas"
 import { QuizCustomizationModal, QuizCustomizationOptions } from "@/components/ui/quiz-customization-modal"
 
 const courseSuggestions = [
@@ -55,6 +53,7 @@ interface Message {
 
 interface TopicWithResources extends Topic {
   resources?: VideoResource[];
+  questions?: TopicQuestion[];
 }
 
 interface MainContentProps {
@@ -206,6 +205,17 @@ const WelcomeAudio: React.FC<{ audioPath: string }> = ({ audioPath }) => {
   );
 };
 
+interface MainContentProps {
+  activeSection: ActiveSection;
+  setActiveSection: (section: ActiveSection) => void;
+  selectedCourse: Course | null;
+  setSelectedCourse: (course: Course | null) => void;
+  selectedTopic: Topic | null;
+  setSelectedTopic: (topic: Topic | null) => void;
+  selectedCapstone: CapstoneProject | null;
+  setSelectedCapstone: (capstone: CapstoneProject | null) => void;
+}
+
 export default function MainContent({ 
   activeSection, 
   setActiveSection, 
@@ -240,6 +250,33 @@ export default function MainContent({
     isStreaming: boolean;
     isExpanded: boolean;
   }>>([])
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [questionModeStates, setQuestionModeStates] = useState<Record<string, {
+    isLoading: boolean;
+    explanation: string | null;
+    timestampedWords: Array<{word: string, startTime: number, endTime: number}>;
+    audioUrl: string | null;
+    isPlaying: boolean;
+    currentTime: number;
+    duration: number;
+    isExpanded: boolean;
+    streamedText: string;
+    streamingComplete: boolean;
+  }>>({});
+  const [questionAudioElements, setQuestionAudioElements] = useState<Record<string, HTMLAudioElement>>({});
+
+  // Monitor authentication state
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAuthenticated(!!user);
+      console.log('Authentication state changed:', {
+        isAuthenticated: !!user,
+        userId: user?.uid
+      });
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   // Handle authentication state
   useEffect(() => {
@@ -296,6 +333,36 @@ export default function MainContent({
       });
     }
   }, [selectedCourse]);
+
+  // Reset question index when topic changes
+  useEffect(() => {
+    setCurrentQuestionIndex(0);
+  }, [selectedTopic]);
+
+  // Reset question mode states when question changes
+  useEffect(() => {
+    // Pause and clean up any playing audio
+    Object.values(questionAudioElements).forEach(audio => {
+      if (!audio.paused) {
+        audio.pause();
+      }
+    });
+    
+    setQuestionModeStates({});
+    setQuestionAudioElements({});
+  }, [currentQuestionIndex, selectedTopic]);
+
+  // Clean up audio elements when component unmounts
+  useEffect(() => {
+    return () => {
+      // Pause and clean up any playing audio
+      Object.values(questionAudioElements).forEach(audio => {
+        if (!audio.paused) {
+          audio.pause();
+        }
+      });
+    };
+  }, [questionAudioElements]);
 
   const handleInitialSubmit = async () => {
     console.log("Triggering initial syllabus generation");
@@ -685,6 +752,490 @@ export default function MainContent({
     }
   }
 
+  // Handle learning mode selection for a specific question
+  const handleQuestionModeSelect = async (modeId: string, question: TopicQuestion) => {
+    // If already expanded, just toggle back
+    if (questionModeStates[modeId]?.isExpanded) {
+      setQuestionModeStates(prev => ({
+        ...prev,
+        [modeId]: {
+          ...prev[modeId],
+          isExpanded: false
+        }
+      }));
+      
+      // Pause audio if playing
+      if (questionAudioElements[modeId] && questionModeStates[modeId]?.isPlaying) {
+        questionAudioElements[modeId].pause();
+        setQuestionModeStates(prev => ({
+          ...prev,
+          [modeId]: {
+            ...prev[modeId],
+            isPlaying: false
+          }
+        }));
+      }
+      
+      return;
+    }
+    
+    // Ensure we have a user ID
+    if (!isAuthenticated) {
+      alert('You must be logged in to use this feature');
+      return;
+    }
+    
+    // Double-check Firebase auth state
+    if (!auth.currentUser) {
+      console.error('Firebase auth currentUser is null despite isAuthenticated being true');
+      alert('Authentication error. Please try logging out and back in.');
+      return;
+    }
+    
+    const userId = auth.currentUser.uid;
+    console.log('Current authenticated user ID:', userId);
+    
+    // Set loading state and expand the mode
+    setQuestionModeStates(prev => ({
+      ...prev,
+      [modeId]: {
+        isLoading: true,
+        explanation: null,
+        timestampedWords: [],
+        audioUrl: null,
+        isPlaying: false,
+        currentTime: 0,
+        duration: 0,
+        isExpanded: true,
+        streamedText: "",
+        streamingComplete: false
+      }
+    }));
+    
+    try {
+      // Prepare the request payload
+      const payload = {
+        userId,
+        courseId: selectedCourse?.id,
+        topicId: `topic-${selectedTopic?.title.replace(/\s+/g, '-').toLowerCase()}`,
+        userQuery: question.question,
+        syllabus: selectedCourse?.syllabus,
+        currentTopic: selectedTopic,
+        learningMode: modeId,
+        learningModeDescription: learningModes.find(m => m.id === modeId)?.description || '',
+        questionContext: {
+          question: question.question,
+          answer: question.answer,
+          searchQuery: question.searchQuery
+        }
+      };
+      
+      console.log('Sending request to generate explanation with payload:', JSON.stringify({
+        userId: payload.userId,
+        courseId: payload.courseId,
+        topicId: payload.topicId,
+        learningMode: payload.learningMode,
+        questionText: question.question.substring(0, 30) + '...',
+        // Omitting larger objects for clarity
+      }));
+      
+      // Call the API to generate explanation and audio for the question
+      const response = await fetch('/api/generate-explanation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`API error (${response.status}):`, errorText);
+        throw new Error(`Failed to generate explanation: ${response.status} ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Received explanation data:', {
+        hasTimestampedExplanation: !!data.timestampedExplanation,
+        wordCount: data.timestampedExplanation?.words?.length || 0,
+        hasAudioUrl: !!data.audioUrl,
+        error: data.error
+      });
+      
+      // Check if there's an error message but we still have an explanation
+      if (data.error && data.timestampedExplanation) {
+        console.warn('API warning:', data.error);
+      }
+      
+      // Get the explanation text and timestamped words
+      const explanationText = data.timestampedExplanation?.fullText || '';
+      const timestampedWords = data.timestampedExplanation?.words || [];
+      
+      // Create audio element if we have an audio URL
+      let audio: HTMLAudioElement | null = null;
+      if (data.audioUrl) {
+        audio = new Audio(data.audioUrl);
+        
+        // Add debounce for timeupdate to prevent too frequent updates
+        let lastUpdateTime = 0;
+        
+        // Add event listeners for time updates and duration
+        audio.addEventListener('timeupdate', () => {
+          const now = Date.now();
+          // Only update every 50ms to prevent too frequent updates
+          if (now - lastUpdateTime < 50) return;
+          lastUpdateTime = now;
+          
+          const currentTime = audio?.currentTime || 0;
+          const duration = audio?.duration || 0;
+          
+          // Get the current streamed text based on timestamps
+          let streamedText = '';
+          let streamingComplete = false;
+          
+          // Check if we're near the end of the audio
+          const isNearEnd = currentTime >= duration - 0.2;
+          
+          // If we're near the end, show the full text
+          if (isNearEnd) {
+            streamedText = explanationText;
+            streamingComplete = true;
+          } else {
+            // Use our fixed-rate approach regardless of whether we have timestamps
+            if (timestampedWords.length > 0) {
+              streamedText = getTextAtTimestamp(timestampedWords, currentTime, modeId);
+            } else {
+              streamedText = calculateStreamedText(explanationText, currentTime, duration, modeId);
+            }
+            streamingComplete = false;
+          }
+          
+          setQuestionModeStates(prev => ({
+            ...prev,
+            [modeId]: {
+              ...prev[modeId],
+              currentTime,
+              streamedText,
+              streamingComplete
+            }
+          }));
+        });
+        
+        // Add event listener for when audio ends
+        audio.addEventListener('ended', () => {
+          setQuestionModeStates(prev => ({
+            ...prev,
+            [modeId]: {
+              ...prev[modeId],
+              isPlaying: false,
+              streamingComplete: true,
+              // Show the full text when audio ends
+              streamedText: explanationText
+            }
+          }));
+        });
+        
+        audio.addEventListener('loadedmetadata', () => {
+          setQuestionModeStates(prev => ({
+            ...prev,
+            [modeId]: {
+              ...prev[modeId],
+              duration: audio?.duration || 0
+            }
+          }));
+        });
+        
+        // Add error handling for audio loading
+        audio.addEventListener('error', (e) => {
+          console.error('Error loading audio:', e);
+          setQuestionModeStates(prev => ({
+            ...prev,
+            [modeId]: {
+              ...prev[modeId],
+              isLoading: false,
+              explanation: prev[modeId]?.explanation || data.explanation,
+              audioUrl: null // Clear the audio URL on error
+            }
+          }));
+        });
+        
+        // Store audio element for later control
+        setQuestionAudioElements(prev => ({
+          ...prev,
+          [modeId]: audio as HTMLAudioElement
+        }));
+      }
+      
+      // Update state with results
+      setQuestionModeStates(prev => {
+        // Check if we should start playing immediately
+        const shouldPlay = prev[modeId]?.isPlaying || false;
+        
+        // If we should start playing, play the audio
+        if (shouldPlay && audio) {
+          // Add a small delay before playing to ensure everything is set up
+          setTimeout(() => {
+            audio.play().catch(error => {
+              console.error('Error playing audio:', error);
+            });
+          }, 100);
+        }
+        
+        return {
+          ...prev,
+          [modeId]: {
+            ...prev[modeId],
+            isLoading: false,
+            explanation: explanationText,
+            timestampedWords: timestampedWords,
+            audioUrl: data.audioUrl,
+            currentTime: 0,
+            duration: 0,
+            // Start with empty text, not the full explanation
+            streamedText: shouldPlay ? "" : "",
+            streamingComplete: false,
+            isPlaying: shouldPlay
+          }
+        };
+      });
+    } catch (error) {
+      console.error('Error generating explanation:', error);
+      
+      // Update state with error
+      setQuestionModeStates(prev => ({
+        ...prev,
+        [modeId]: {
+          ...prev[modeId],
+          isLoading: false,
+          explanation: "Sorry, we couldn't generate an explanation at this time. Please try again later."
+        }
+      }));
+    }
+  };
+  
+  // Toggle play/pause for question audio
+  const toggleQuestionAudio = (modeId: string) => {
+    const audio = questionAudioElements[modeId];
+    if (!audio) {
+      console.warn('Audio element not found for mode:', modeId);
+      return;
+    }
+    
+    const state = questionModeStates[modeId];
+    if (!state) return;
+    
+    if (state.isPlaying) {
+      // Pause audio
+      audio.pause();
+      
+      // When paused, keep the current streamed text
+      setQuestionModeStates(prev => ({
+        ...prev,
+        [modeId]: {
+          ...prev[modeId],
+          isPlaying: false
+        }
+      }));
+    } else {
+      // Pause any other playing audio first
+      Object.entries(questionAudioElements).forEach(([id, audioEl]) => {
+        if (id !== modeId && questionAudioElements[id] && questionModeStates[id]?.isPlaying) {
+          audioEl.pause();
+          setQuestionModeStates(prev => ({
+            ...prev,
+            [id]: {
+              ...prev[id],
+              isPlaying: false
+            }
+          }));
+        }
+      });
+      
+      // If starting from the beginning or near the end, reset the streamed text
+      if (audio.currentTime < 0.1 || audio.currentTime >= audio.duration - 0.2 || state.streamingComplete) {
+        // Reset to beginning if at the end or streaming is complete
+        audio.currentTime = 0;
+        
+        setQuestionModeStates(prev => ({
+          ...prev,
+          [modeId]: {
+            ...prev[modeId],
+            streamedText: '',
+            streamingComplete: false
+          }
+        }));
+      }
+      
+      // Play the selected audio
+      audio.play().catch(error => {
+        console.error('Error playing audio:', error);
+        setQuestionModeStates(prev => ({
+          ...prev,
+          [modeId]: {
+            ...prev[modeId],
+            isPlaying: false,
+            audioUrl: null, // Clear the audio URL on error
+            streamedText: prev[modeId]?.explanation || '',
+            streamingComplete: true
+          }
+        }));
+      });
+      
+      setQuestionModeStates(prev => ({
+        ...prev,
+        [modeId]: {
+          ...prev[modeId],
+          isPlaying: true
+        }
+      }));
+    }
+  };
+  
+  // Format time for audio player
+  const formatTime = (seconds: number) => {
+    if (isNaN(seconds)) return "00:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Define learning modes
+  const learningModes = [
+    { 
+      id: 'ELI5', 
+      label: 'Explain like I\'m 5', 
+      description: 'Simple explanations, without the jargon',
+      color: 'bg-amber-100/80 hover:bg-amber-200/80 text-amber-800 border-amber-200',
+      icon: <Lightbulb className="h-5 w-5" />
+    },
+    { 
+      id: 'How it works IRL', 
+      label: 'How it works IRL', 
+      description: 'Explanations with concrete examples',
+      color: 'bg-green-500/10 hover:bg-green-500/20 text-green-600 border-green-200',
+      icon: <Briefcase className="h-5 w-5" />
+    },
+    { 
+      id: 'The Nitty Gritty', 
+      label: 'The Nitty Gritty', 
+      description: 'In-depth explanations, with specifics',
+      color: 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 border-purple-200',
+      icon: <Microscope className="h-5 w-5" />
+    },
+    { 
+      id: 'Impress your friends', 
+      label: 'Impress \'em', 
+      description: '5-6 essential facts, concise & memorable',
+      color: 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 border-orange-200',
+      icon: <Sparkles className="h-5 w-5" />
+    },
+  ];
+
+  // Calculate streamed text based on a fixed characters-per-minute rate
+  const calculateStreamedText = (fullText: string, currentTime: number, duration: number, modeId: string): string => {
+    if (!fullText || duration <= 0) return '';
+    
+    // Add a small delay to the start of streaming (0.3 seconds)
+    // This helps account for any initial audio buffering
+    const adjustedTime = Math.max(0, currentTime - 0.3);
+    
+    // Use a fixed characters-per-minute rate
+    // Average reading speed is about 200-250 words per minute
+    // Assuming an average of 5 characters per word, that's about 1000-1250 characters per minute
+    // We'll use a moderate rate of 800 characters per minute (13.3 characters per second)
+    let charsPerSecond = 13.3;
+    
+    // If we have a duration and text, adjust the rate to ensure all text is shown by the end
+    if (duration > 0 && fullText.length > 0) {
+      // Calculate the ideal characters per second to show all text by the end of the audio
+      // Subtract 1 second from duration to ensure all text is shown before the very end
+      const idealCharsPerSecond = fullText.length / Math.max(1, duration - 1);
+      
+      // Use the ideal rate if it's higher than our default
+      if (idealCharsPerSecond > charsPerSecond) {
+        charsPerSecond = idealCharsPerSecond;
+      }
+    }
+    
+    // Calculate how many characters should be shown based on the current time
+    let charCount = Math.floor(adjustedTime * charsPerSecond);
+    
+    // Apply smoothing to prevent text from jumping too much
+    const modeState = questionModeStates[modeId];
+    if (modeState && modeState.streamedText) {
+      // Get the current number of characters shown
+      const currentCharCount = modeState.streamedText.length;
+      
+      // Limit how many characters can appear in a single update (max 15 chars per update)
+      if (charCount > currentCharCount + 15) {
+        charCount = currentCharCount + 15;
+      }
+    }
+    
+    // Limit to the actual number of characters we have
+    const visibleCharCount = Math.min(charCount, fullText.length);
+    
+    // Return the substring
+    return fullText.substring(0, visibleCharCount);
+  };
+
+  // Get text at a specific timestamp using a fixed words-per-minute rate
+  const getTextAtTimestamp = (
+    words: Array<{word: string, startTime: number, endTime: number}>, 
+    currentTime: number,
+    modeId: string
+  ): string => {
+    if (!words || words.length === 0) return '';
+    
+    // Add a small delay to the start of streaming (0.3 seconds)
+    // This helps account for any initial audio buffering
+    const adjustedTime = Math.max(0, currentTime - 0.3);
+    
+    // Instead of using the word timestamps, we'll use a fixed words-per-minute rate
+    // Average speaking rate is about 150 words per minute, or 2.5 words per second
+    // We'll use a moderate rate of 120 words per minute (2 words per second) for better readability
+    let wordsPerSecond = 3.5;
+    
+    // Get the audio duration from the state
+    const duration = questionModeStates[modeId]?.duration || 0;
+    
+    // If we have a duration and words, adjust the rate to ensure all words are shown by the end
+    if (duration > 0 && words.length > 0) {
+      // Calculate the ideal words per second to show all words by the end of the audio
+      // Subtract 1 second from duration to ensure all words are shown before the very end
+      const idealWordsPerSecond = words.length / Math.max(1, duration - 1);
+      
+      // Use the ideal rate if it's higher than our default
+      if (idealWordsPerSecond > wordsPerSecond) {
+        wordsPerSecond = idealWordsPerSecond;
+      }
+    }
+    
+    // Calculate how many words should be shown based on the current time
+    let wordCount = Math.floor(adjustedTime * wordsPerSecond);
+    
+    // Apply smoothing to prevent text from jumping too much
+    const modeState = questionModeStates[modeId];
+    if (modeState && modeState.streamedText) {
+      // Get the current number of words shown
+      const currentWordCount = modeState.streamedText.split(/\s+/).length;
+      
+      // Limit how many words can appear in a single update (max 3 words per update)
+      if (wordCount > currentWordCount + 3) {
+        wordCount = currentWordCount + 3;
+      }
+    }
+    
+    // Limit to the actual number of words we have
+    const visibleWordCount = Math.min(wordCount, words.length);
+    
+    // If no words are visible yet, return empty string
+    if (visibleWordCount <= 0) return '';
+    
+    // Join the visible words with spaces
+    return words.slice(0, visibleWordCount).map(word => word.word).join(' ');
+  };
+
   if (selectedCourse) {
     return (
       <div className="h-full p-8 overflow-y-auto">
@@ -706,186 +1257,315 @@ export default function MainContent({
               <p className="text-muted-foreground mb-8">{selectedTopic.description}</p>
             )}
             
-            <LearningModes 
-              key={`learning-modes-${selectedTopic.title.replace(/\s+/g, '-').toLowerCase()}`}
-              onModeSelect={(mode) => {
-                console.log('Selected mode:', mode);
-              }} 
-              currentTopic={selectedTopic}
-              syllabus={selectedCourse.syllabus}
-              userQuery=""
-              courseId={selectedCourse.id}
-            />
-            
-            {/* Visual connector between learning modes and search bar */}
-            <div className="relative mt-4 mb-1">
-              {/* Center vertical line */}
-              <div className="absolute left-1/2 -translate-x-1/2 top-0 w-px h-6 border-l border-dashed border-primary/40 animate-pulse-slow"></div>
-              
-              {/* Decorative node */}
-              <div className="absolute left-1/2 -translate-x-1/2 top-6 w-5 h-5 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center shadow-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse"></div>
-              </div>
-              
-              {/* Horizontal connecting lines */}
-              <div className="absolute top-3 left-1/4 w-[50%] border-t border-dashed border-primary/30"></div>
-              
-              {/* Corner dots */}
-              <div className="absolute top-3 left-1/4 w-1.5 h-1.5 rounded-full bg-primary/20 border border-primary/30 -translate-x-1/2 -translate-y-1/2 animate-pulse-slow"></div>
-              <div className="absolute top-3 right-1/4 w-1.5 h-1.5 rounded-full bg-primary/20 border border-primary/30 translate-x-1/2 -translate-y-1/2 animate-pulse-slow"></div>
-            </div>
-            
-            {/* Topic Search Bar */}
-            <div className="mt-6 mb-12 relative">
-              {/* Decorative dotted lines connecting to the learning modes */}
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[90%] mx-auto">
-                <div className="relative h-6">
-                  {/* Vertical side lines */}
-                  <div className="absolute top-0 left-0 h-full border-l border-dashed border-primary/30"></div>
-                  <div className="absolute top-0 right-0 h-full border-r border-dashed border-primary/30"></div>
-                  
-                  {/* Bottom connecting line */}
-                  <div className="absolute bottom-0 left-0 w-full border-t border-dashed border-primary/30"></div>
-                  
-                  {/* Corner dots */}
-                  <div className="absolute bottom-0 left-0 w-1.5 h-1.5 rounded-full bg-primary/20 border border-primary/30 -translate-x-1/2 translate-y-1/2 animate-pulse-slow"></div>
-                  <div className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-primary/20 border border-primary/30 translate-x-1/2 translate-y-1/2 animate-pulse-slow"></div>
+            {/* Visual connector between learning modes and questions */}
+            {selectedTopic.questions && selectedTopic.questions.length > 0 && (
+              <div className="relative my-4">
+                <div className="absolute left-1/2 -translate-x-1/2 top-0 w-px h-8 border-l border-dashed border-primary/40"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-8 w-4 h-4 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary/60"></div>
                 </div>
               </div>
-              
-              <div className="group/wrapper">
-                <div className="relative w-full max-w-2xl mx-auto overflow-hidden rounded-xl bg-white/10 backdrop-blur-md shadow-sm transition-all hover:shadow-md border border-primary/30 group group-focus-within/wrapper:border-primary/50 group-focus-within/wrapper:shadow-md">
-                  {/* Glow effect */}
-                  <div className="absolute -inset-1 bg-primary/5 rounded-xl blur-md opacity-0 group-hover:opacity-70 transition-opacity duration-500"></div>
-                  
-                  <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 opacity-50 group-hover:opacity-70 transition-opacity duration-300"></div>
-                  <div className="absolute inset-0 bg-white/5 rounded-xl"></div>
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/10 to-transparent opacity-20"></div>
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/30 via-primary/10 to-primary/30 opacity-30 blur-sm rounded-xl group-hover:opacity-40 transition-opacity duration-300"></div>
-                  
-                  {/* Shimmer effect */}
-                  <div className="absolute inset-0 overflow-hidden">
-                    <div className="absolute -inset-[400%] top-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 rotate-45 translate-x-[0%] group-hover:translate-x-[100%] duration-2000"></div>
+            )}
+            
+            {/* Display a single question with navigation */}
+            {selectedTopic.questions && selectedTopic.questions.length > 0 && (
+              <div className="mt-8 mb-12">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-primary">Byte sized learning</h2>
+                  <div className="text-sm text-primary/60">
+                    Question {currentQuestionIndex + 1} of {selectedTopic.questions.length}
+                  </div>
+                </div>
+                
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-primary/20 p-6 shadow-sm">
+                  {/* Question header with enhanced styling */}
+                  <div className="mb-5 pb-4 border-b border-primary/10">
+                    <div className="bg-primary/5 p-3 rounded-lg border border-primary/10">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-1">
+                          <div className="p-1 rounded-full bg-primary/10 animate-pulse-slow">
+                            <HelpCircle className="h-5 w-5 text-primary/70" />
+                          </div>
+                        </div>
+                        <h3 className="text-xl font-semibold text-primary leading-tight">
+                          {selectedTopic.questions[currentQuestionIndex].question}
+                        </h3>
+                      </div>
+                    </div>
                   </div>
                   
-                  {/* Decorative dots at corners */}
-                  <div className="absolute top-0 left-0 w-1.5 h-1.5 rounded-full bg-primary/40 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-primary/40 translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="absolute bottom-0 left-0 w-1.5 h-1.5 rounded-full bg-primary/40 -translate-x-1/2 translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-primary/40 translate-x-1/2 translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  {/* Answer text - visible by default */}
+                  <div className="text-muted-foreground whitespace-pre-wrap mb-6">
+                    {selectedTopic.questions[currentQuestionIndex].answer}
+                  </div>
                   
-                  <div className="relative flex items-center">
-                    <div className="flex-1 relative">
-                      <input
-                        type="text"
-                        placeholder={`Ask Oyster anything about ${selectedTopic.title}...`}
-                        className="w-full bg-transparent px-4 py-3 text-foreground placeholder:text-muted-foreground/70 focus:outline-none transition-all duration-300 focus:placeholder:text-primary/50"
-                        value={topicSearchQuery}
-                        onChange={(e) => setTopicSearchQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleTopicSearch();
-                          }
-                        }}
-                      />
-                      {topicSearchQuery && (
-                        <button 
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground"
-                          onClick={() => setTopicSearchQuery("")}
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
+                  {/* Learning modes for this question */}
+                  <div className="mt-2 mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-px border-t border-dashed border-primary/30"></div>
+                      <h4 className="text-sm font-medium text-primary">Learn your way</h4>
+                      <div className="w-8 h-px border-t border-dashed border-primary/30"></div>
                     </div>
                     
-                    {/* Divider */}
-                    <div className="h-10 w-px bg-primary/20 mx-2"></div>
-                    
-                    <button 
-                      className="p-3 pr-4 text-primary/70 hover:text-primary transition-colors relative disabled:opacity-50 disabled:pointer-events-none"
-                      onClick={handleTopicSearch}
-                      disabled={isTopicSearchLoading}
-                      aria-label="Search"
-                    >
-                      {isTopicSearchLoading ? (
-                        <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                      ) : (
-                        <Search className="h-6 w-6" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Decorative elements below search bar */}
-              <div className="flex justify-center mt-3">
-                <div className="text-xs text-primary/60 flex items-center gap-2">
-                  <div className="w-16 h-px border-t border-dashed border-primary/30"></div>
-                  <div className="italic">Expand your understanding</div>
-                  <div className="w-16 h-px border-t border-dashed border-primary/30"></div>
-                </div>
-              </div>
-              
-              {/* Question Pills */}
-              {topicQuestions.length > 0 && (
-                <div className="mt-6 max-w-2xl mx-auto">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                    {topicQuestions.map((q) => (
-                      <div key={q.id} className="relative">
-                        <div 
-                          className={`
-                            rounded-full px-4 py-2 text-sm flex items-center gap-2 cursor-pointer transition-all w-full
-                            ${q.isExpanded 
-                              ? 'bg-primary/20 text-primary shadow-sm' 
-                              : 'bg-primary/10 text-primary/80 hover:bg-primary/15'}
-                          `}
+                    {!isAuthenticated && (
+                      <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm text-center">
+                        <div className="flex items-center justify-center gap-2 mb-2 text-primary/80">
+                          <Lock className="h-4 w-4" />
+                          <span className="font-medium">Login required</span>
+                        </div>
+                        <p className="text-muted-foreground mb-3">
+                          Please log in to access personalized learning modes for this question.
+                        </p>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="mx-auto"
                           onClick={() => {
-                            setTopicQuestions(prev => 
-                              prev.map(item => 
-                                item.id === q.id 
-                                  ? { ...item, isExpanded: !item.isExpanded } 
-                                  : item
-                              )
-                            )
+                            // Redirect to login page or open login modal
+                            // This depends on your authentication implementation
+                            const event = new CustomEvent('open-auth-modal', { detail: { mode: 'login' } });
+                            window.dispatchEvent(event);
                           }}
                         >
-                          <div className="flex-shrink-0 w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center">
-                            {q.isStreaming ? (
-                              <div className="w-2 h-2 rounded-full bg-primary/60 animate-pulse"></div>
-                            ) : (
-                              <div className="w-2 h-2 rounded-full bg-primary/60"></div>
-                            )}
-                          </div>
-                          <span className="truncate flex-1">{q.question}</span>
-                          <ChevronRight className={`h-4 w-4 flex-shrink-0 transition-transform ${q.isExpanded ? 'rotate-90' : ''}`} />
-                        </div>
+                          <User className="h-4 w-4 mr-2" />
+                          Log in
+                        </Button>
                       </div>
-                    ))}
+                    )}
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {learningModes.map((mode) => {
+                        const modeState = questionModeStates[mode.id];
+                        const isExpanded = modeState?.isExpanded;
+                        const isLoading = modeState?.isLoading;
+                        const isPlaying = modeState?.isPlaying;
+                        
+                        return (
+                          <div key={mode.id} className="flex flex-col">
+                            <button
+                              onClick={() => handleQuestionModeSelect(mode.id, selectedTopic.questions![currentQuestionIndex])}
+                              className={cn(
+                                "relative rounded-lg p-3 text-left transition-all duration-200 border",
+                                mode.color,
+                                isExpanded ? "ring-2 ring-primary/40 shadow-md" : "hover:shadow-sm",
+                                !isAuthenticated && "opacity-60 cursor-not-allowed"
+                              )}
+                              disabled={!isAuthenticated || isLoading}
+                              title={!isAuthenticated ? "Please log in to use this feature" : ""}
+                            >
+                              <div className="flex items-center gap-2">
+                                {mode.icon}
+                                <span className="font-medium">{mode.label}</span>
+                              </div>
+                              <p className="text-xs mt-1 opacity-80">{mode.description}</p>
+                              
+                              {/* Loading indicator */}
+                              {isLoading && (
+                                <div className="absolute inset-0 bg-black/5 backdrop-blur-[1px] rounded-lg flex items-center justify-center">
+                                  <div className="w-6 h-6 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
+                                </div>
+                              )}
+                              
+                              {/* Authentication indicator */}
+                              {!isAuthenticated && (
+                                <div className="absolute top-1 right-1 text-primary/60">
+                                  <Lock className="h-3 w-3" />
+                                </div>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                   
-                  {/* Expanded Answers - shown below the grid of pills */}
-                  {topicQuestions.filter(q => q.isExpanded).map((q) => (
-                    <div key={`answer-${q.id}`} className="mb-4">
-                      <div className="bg-white/10 backdrop-blur-sm rounded-lg border border-primary/20 p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
-                        <div className="mb-3 font-medium text-primary">{q.question}</div>
-                        {q.isStreaming ? (
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <div className="w-4 h-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
-                            <span>Generating answer...</span>
+                  {/* Expanded explanation */}
+                  {Object.entries(questionModeStates).map(([modeId, state]) => {
+                    if (!state.isExpanded || !state.explanation) return null;
+                    
+                    const mode = learningModes.find(m => m.id === modeId);
+                    if (!mode) return null;
+                    
+                    return (
+                      <div 
+                        key={`explanation-${modeId}`} 
+                        className={cn(
+                          "mt-4 p-4 rounded-lg border animate-in fade-in slide-in-from-top-2 duration-200",
+                          mode.color.split(' ')[0], // Use the first color class
+                          "border-primary/20"
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {mode.icon}
+                            <h4 className="font-medium">{mode.label} Explanation</h4>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 rounded-full"
+                            onClick={() => {
+                              setQuestionModeStates(prev => ({
+                                ...prev,
+                                [modeId]: {
+                                  ...prev[modeId],
+                                  isExpanded: false
+                                }
+                              }));
+                              
+                              // Pause audio if playing
+                              if (questionAudioElements[modeId] && state.isPlaying) {
+                                questionAudioElements[modeId].pause();
+                                setQuestionModeStates(prev => ({
+                                  ...prev,
+                                  [modeId]: {
+                                    ...prev[modeId],
+                                    isPlaying: false
+                                  }
+                                }));
+                              }
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        <div className="text-sm whitespace-pre-wrap mb-3 relative">
+                          {/* Show streamed text when playing, empty or placeholder when not playing */}
+                          <div className="relative">
+                            <div 
+                              className="max-h-[4.5rem] overflow-y-auto pr-1 scroll-smooth scrollbar-thin scrollbar-thumb-rounded-full scrollbar-thumb-primary/20 scrollbar-track-transparent" 
+                              style={{ scrollBehavior: 'smooth' }}
+                              ref={(el) => {
+                                // Auto-scroll to bottom when content changes
+                                if (el && state.isPlaying) {
+                                  // Add a small delay to ensure the scroll happens after the content is rendered
+                                  setTimeout(() => {
+                                    el.scrollTop = el.scrollHeight;
+                                  }, 10);
+                                }
+                              }}
+                            >
+                              {state.isPlaying || state.streamingComplete ? (
+                                <div className="pb-4 leading-relaxed">
+                                  <span>{state.streamedText}</span>
+                                  {state.isPlaying && !state.streamingComplete && (
+                                    <span className="inline-block w-1.5 h-4 bg-primary/60 ml-0.5 animate-blink"></span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground/70 italic">
+                                  Press play to listen and see the explanation...
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Fade effect at the bottom */}
+                            {(state.isPlaying || state.streamingComplete) && state.streamedText.length > 150 && (
+                              <>
+                                <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background/90 to-transparent pointer-events-none"></div>
+                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 mb-1 text-primary/40 animate-bounce">
+                                  <ChevronDown className="h-3 w-3" />
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          
+                          {/* Text streaming progress indicator */}
+                          {state.isPlaying && state.explanation && (
+                            <div className="mt-2 h-0.5 bg-primary/10 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-primary/40" 
+                                style={{ 
+                                  width: `${state.streamedText.length / (state.explanation?.length || 1) * 100}%` 
+                                }}
+                              ></div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Audio player */}
+                        {state.audioUrl ? (
+                          <div className="flex items-center gap-3 mt-4 text-xs">
+                            <button
+                              onClick={() => toggleQuestionAudio(modeId)}
+                              className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+                            >
+                              {state.isPlaying ? (
+                                <Pause className="h-4 w-4" />
+                              ) : (
+                                <Play className="h-4 w-4" />
+                              )}
+                            </button>
+                            
+                            <div className="flex-1 h-1.5 bg-primary/10 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-primary/60" 
+                                style={{ 
+                                  width: `${state.duration ? (state.currentTime / state.duration) * 100 : 0}%` 
+                                }}
+                              ></div>
+                            </div>
+                            
+                            <div className="text-muted-foreground">
+                              {formatTime(state.currentTime)} / {formatTime(state.duration)}
+                            </div>
                           </div>
                         ) : (
-                          <div className="text-muted-foreground whitespace-pre-wrap">{q.answer}</div>
+                          <div className="text-xs text-muted-foreground mt-4 italic">
+                            Audio unavailable. Please try again later.
+                          </div>
                         )}
                       </div>
+                    );
+                  })}
+                  
+                  <div className="flex items-center gap-2 mt-6">
+                    <div className="text-xs text-primary/60 flex items-center gap-2">
+                      <div className="w-8 h-px border-t border-dashed border-primary/30"></div>
+                      <div className="italic">Related videos</div>
+                      <div className="w-8 h-px border-t border-dashed border-primary/30"></div>
                     </div>
-                  ))}
+                  </div>
+                  
+                  <div className="mt-2 mb-4">
+                    <a 
+                      href={`https://www.youtube.com/results?search_query=${encodeURIComponent(selectedTopic.questions[currentQuestionIndex].searchQuery)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                    >
+                      <Youtube className="h-4 w-4" />
+                      <span>Watch videos about: {selectedTopic.questions[currentQuestionIndex].searchQuery}</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  
+                  <div className="flex justify-between mt-6">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentQuestionIndex((prev) => (prev - 1 + selectedTopic.questions!.length) % selectedTopic.questions!.length)}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronLeft className="h-4 w-4" /> Previous
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setCurrentQuestionIndex((prev) => (prev + 1) % selectedTopic.questions!.length)}
+                      className="flex items-center gap-1"
+                    >
+                      Next <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             
             {selectedTopic.resources && selectedTopic.resources.length > 0 && (
               <div className="mt-12">
-                <h2 className="text-2xl font-bold text-primary mb-6">Dive deeper with some curated resources</h2>
+                <h2 className="text-xl font-semibold text-primary mb-4">Dive deeper with some curated resources</h2>
                 <div className="space-y-4">
                   {selectedTopic.resources.map((resource, index) => (
                     <ResourceCard key={index} resource={resource} />
@@ -1107,7 +1787,7 @@ export default function MainContent({
           <div className="text-center mb-12">
             {/* Oyster Logo */}
             <div className="mb-8 inline-block">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-full bg-primary/10">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10">
                 <div className="w-8 h-8 rounded-full bg-primary/80 ring-8 ring-primary/20" />
               </div>
             </div>

@@ -29,6 +29,21 @@ service firebase.storage {
       // Since we can't authenticate from server-side, we'll allow all writes
       // This is a security trade-off, but the path includes user IDs to prevent conflicts
       allow write: if true;
+      
+      // Allow metadata access
+      allow get, list: if true;
+    }
+    
+    // New rule for question-specific explanations
+    match /public-explanations/{userId}/{courseId}/{topicId}/questions/{questionId}/{filename} {
+      // Allow read access to anyone
+      allow read: if true;
+      
+      // Allow write access from server-side API routes
+      allow write: if true;
+      
+      // Allow metadata access
+      allow get, list: if true;
     }
   }
 }

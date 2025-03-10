@@ -9,6 +9,13 @@ export interface Topic {
   searchQuery: string;
   isCompleted?: boolean;
   resources?: VideoResource[];
+  questions?: TopicQuestion[];
+}
+
+export interface TopicQuestion {
+  question: string;
+  answer: string;
+  searchQuery: string;
 }
 
 export interface Subsection {
@@ -168,6 +175,46 @@ export const CapstoneProjectSchema = z.object({
 
 export type CapstoneProject = z.infer<typeof CapstoneProjectSchema>;
 
+export const TopicQuestionSchema = z.object({
+  questions: z.array(
+    z.object({
+      question: z.string(),
+      answer: z.string(),
+      searchQuery: z.string(),
+    })
+  ),
+});
+
+export type TopicQuestions = z.infer<typeof TopicQuestionSchema>;
+
+const TOPIC_QUESTIONS_PROMPT = `You are an expert educator tasked with generating the 5 most likely questions a student would ask when learning about a specific topic in a course.
+
+For each question:
+1. Create a clear, concise question that addresses a key aspect of the topic
+2. Provide a detailed 6-7 line answer that thoroughly explains the concept
+3. Generate a specific YouTube search query (7-8 words) that would find a video to supplement the answer
+   - The search query should be highly specific and include technical terms
+   - Include words like "tutorial", "guide", or "explained" to find educational content
+   - Focus on the exact concept being asked about
+   - Example: "React Redux State Management Tutorial for Beginners"
+
+Your response should include 5 questions that:
+- Cover different aspects of the topic
+- Progress from fundamental to more advanced concepts
+- Address common points of confusion
+- Help reinforce the key learning objectives
+
+Format the response as a JSON object with the following structure:
+{
+  "questions": [
+    {
+      "question": "Question text?",
+      "answer": "Detailed 6-7 line answer",
+      "searchQuery": "Specific YouTube search query"
+    }
+  ]
+}`;
+
 export async function generateSyllabus(userInput: string): Promise<SyllabusResponse> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -286,5 +333,43 @@ export async function generateCapstoneProject(
     throw new Error("Failed to parse OpenAI response");
   }
 
+  return parsed;
+}
+
+export async function generateTopicQuestions(
+  topic: Topic,
+  syllabus: Syllabus,
+  userRequest: string
+): Promise<TopicQuestions> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing OPENAI_API_KEY environment variable");
+  }
+
+  const openai = new OpenAI({
+    apiKey: apiKey,
+  });
+
+  console.log(`Generating questions for topic: ${topic.title}`);
+
+  const completion = await openai.beta.chat.completions.parse({
+    model: "gpt-4o-mini-2024-07-18",
+    messages: [
+      { role: "system", content: TOPIC_QUESTIONS_PROMPT },
+      { 
+        role: "user", 
+        content: `Original Course Request: ${userRequest}\n\nCourse Syllabus Context: ${JSON.stringify(syllabus, null, 2)}\n\nCurrent Topic: ${JSON.stringify(topic, null, 2)}\n\nPlease generate 5 questions, detailed answers, and search queries for this specific topic.`
+      },
+    ],
+    response_format: zodResponseFormat(TopicQuestionSchema, "response"),
+    temperature: 0.7,
+  });
+
+  const parsed = completion.choices[0].message.parsed;
+  if (!parsed) {
+    throw new Error("Failed to parse OpenAI response for topic questions");
+  }
+
+  console.log(`Successfully generated ${parsed.questions.length} questions for topic: ${topic.title}`);
   return parsed;
 } 
