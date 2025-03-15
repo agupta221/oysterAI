@@ -25,6 +25,14 @@ import type { CapstoneProject } from "@/lib/openai"
 import CourseCanvas from "@/components/course-canvas"
 import Sidebar from "@/components/sidebar"
 import { QuizCustomizationModal, QuizCustomizationOptions } from "@/components/ui/quiz-customization-modal"
+import { InteractiveModeButton } from "@/components/ui/interactive-mode-button"
+import type { InteractiveModeContent } from '@/lib/interactive-mode-generator'
+import { TimelineModal } from "@/components/ui/timeline-modal"
+import { ScenarioModal } from "@/components/ui/scenario-modal"
+import { CaseStudyModal } from "@/components/ui/case-study-modal"
+import { toast } from "sonner"
+import { collection, query, where, getDocs, addDoc } from "firebase/firestore"
+import { db } from "@/lib/firebase/firebase"
 
 const courseSuggestions = [
   {
@@ -264,6 +272,9 @@ export default function MainContent({
     streamingComplete: boolean;
   }>>({});
   const [questionAudioElements, setQuestionAudioElements] = useState<Record<string, HTMLAudioElement>>({});
+  const [isLoadingInteractiveMode, setIsLoadingInteractiveMode] = useState(false)
+  const [interactiveModeContent, setInteractiveModeContent] = useState<InteractiveModeContent | null>(null)
+  const [showInteractiveMode, setShowInteractiveMode] = useState(false)
 
   // Monitor authentication state
   useEffect(() => {
@@ -1236,6 +1247,135 @@ export default function MainContent({
     return words.slice(0, visibleWordCount).map(word => word.word).join(' ');
   };
 
+  const handleInteractiveModeClick = async () => {
+    if (!selectedTopic?.questions?.[currentQuestionIndex] || !selectedCourse) return
+    
+    console.log('Starting interactive mode request for question:', {
+      question: selectedTopic.questions[currentQuestionIndex].question,
+      courseId: selectedCourse.id,
+      topicId: `topic-${selectedTopic.title.replace(/\s+/g, '-').toLowerCase()}`
+    })
+    
+    setIsLoadingInteractiveMode(true)
+    try {
+      // Get the current user
+      const user = auth.currentUser
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      // Create a unique ID for this question's interactive mode content
+      const questionId = selectedTopic.questions[currentQuestionIndex].question
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .slice(0, 50)
+
+      // Check if we have cached data in Firestore
+      const interactiveModeRef = collection(db, 'users', user.uid, 'interactive-modes')
+      const q = query(
+        interactiveModeRef,
+        where('questionId', '==', questionId),
+        where('courseId', '==', selectedCourse.id),
+        where('topicId', '==', `topic-${selectedTopic.title.replace(/\s+/g, '-').toLowerCase()}`)
+      )
+
+      const querySnapshot = await getDocs(q)
+      let cachedData = null
+
+      if (!querySnapshot.empty) {
+        cachedData = querySnapshot.docs[0].data()
+        console.log('Found cached interactive mode data:', cachedData)
+      }
+
+      if (cachedData) {
+        // Use cached data
+        //toast.info(`Opening ${cachedData.mode} interactive mode`)
+        // toast.info(`Opening ${cachedData.mode} interactive mode`, {
+        //   description: 'Click outside the modal to close it when you\'re done.'
+        // })
+        setInteractiveModeContent(cachedData.content)
+        setShowInteractiveMode(true)
+      } else {
+        // Generate new content via API
+        const token = await user.getIdToken()
+        const response = await fetch('/api/interactive-mode', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            question: selectedTopic.questions[currentQuestionIndex].question,
+            courseId: selectedCourse.id,
+            topicId: `topic-${selectedTopic.title.replace(/\s+/g, '-').toLowerCase()}`
+          }),
+        })
+
+        if (!response.ok && response.status !== 200) {
+          throw new Error('Failed to fetch interactive mode content')
+        }
+
+        const data = await response.json()
+        
+        // Log the response
+        console.log('Interactive mode API response:', {
+          mode: data.mode,
+          content: data.content,
+          fullResponse: data
+        })
+        
+        // Check if there was an error but we have fallback content
+        if (data.error && data.fallbackContent) {
+          console.warn('Using fallback content due to error:', data.error, data.details)
+          toast.warning('Using simplified interactive mode due to an error', {
+            description: 'Some features may be limited.'
+          })
+          
+          // Use the fallback content
+          data.content = data.fallbackContent
+          data.mode = data.fallbackMode || 'scenario-based'
+        }
+        
+        // Log when case study mode is detected
+        if (data.content && 'caseStudy' in data.content) {
+          console.log('Case study mode detected:', data.content.caseStudy)
+        }
+
+        // Store the new data in Firestore
+        try {
+          await addDoc(interactiveModeRef, {
+            questionId,
+            courseId: selectedCourse.id,
+            topicId: `topic-${selectedTopic.title.replace(/\s+/g, '-').toLowerCase()}`,
+            mode: data.mode,
+            content: data.content,
+            createdAt: new Date(),
+            question: selectedTopic.questions[currentQuestionIndex].question
+          })
+          console.log('Successfully stored interactive mode data in Firestore')
+        } catch (error) {
+          console.error('Error storing interactive mode data:', error)
+          // Continue even if storage fails - we can still show the content
+        }
+        
+        // Show a toast notification with the selected mode
+        //toast.info(`Opening ${data.mode} interactive mode`)
+        // toast.info(`Opening ${data.mode} interactive mode`, {
+        //   description: 'Click outside the modal to close it when you\'re done.'
+        // })
+        
+        setInteractiveModeContent(data.content)
+        setShowInteractiveMode(true)
+      }
+    } catch (error) {
+      console.error('Error fetching interactive mode:', error)
+      toast.error('Failed to load interactive mode')
+    } finally {
+      setIsLoadingInteractiveMode(false)
+    }
+  }
+
   if (selectedCourse) {
     return (
       <div className="h-full p-8 overflow-y-auto">
@@ -1281,15 +1421,22 @@ export default function MainContent({
                   {/* Question header with enhanced styling */}
                   <div className="mb-5 pb-4 border-b border-primary/10">
                     <div className="bg-primary/5 p-3 rounded-lg border border-primary/10">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 mt-1">
-                          <div className="p-1 rounded-full bg-primary/10 animate-pulse-slow">
-                            <HelpCircle className="h-5 w-5 text-primary/70" />
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className="flex-shrink-0 mt-1">
+                            <div className="p-1 rounded-full bg-primary/10 animate-pulse-slow">
+                              <HelpCircle className="h-5 w-5 text-primary/70" />
+                            </div>
                           </div>
+                          <h3 className="text-xl font-semibold text-primary leading-tight">
+                            {selectedTopic.questions[currentQuestionIndex].question}
+                          </h3>
                         </div>
-                        <h3 className="text-xl font-semibold text-primary leading-tight">
-                          {selectedTopic.questions[currentQuestionIndex].question}
-                        </h3>
+                        <InteractiveModeButton 
+                          onClick={handleInteractiveModeClick}
+                          disabled={!isAuthenticated || isLoadingInteractiveMode}
+                          className="flex-shrink-0"
+                        />
                       </div>
                     </div>
                   </div>
@@ -1627,6 +1774,37 @@ export default function MainContent({
                 questions={quizQuestions}
                 timeLimit={null}
               />
+            )}
+
+            {interactiveModeContent && showInteractiveMode && (
+              'timeline' in interactiveModeContent ? (
+                <TimelineModal
+                  isOpen={showInteractiveMode}
+                  onClose={() => {
+                    setShowInteractiveMode(false)
+                    setInteractiveModeContent(null)
+                  }}
+                  content={interactiveModeContent}
+                />
+              ) : 'scenario' in interactiveModeContent ? (
+                <ScenarioModal
+                  isOpen={showInteractiveMode}
+                  onClose={() => {
+                    setShowInteractiveMode(false)
+                    setInteractiveModeContent(null)
+                  }}
+                  content={interactiveModeContent}
+                />
+              ) : 'caseStudy' in interactiveModeContent ? (
+                <CaseStudyModal
+                  isOpen={showInteractiveMode}
+                  onClose={() => {
+                    setShowInteractiveMode(false)
+                    setInteractiveModeContent(null)
+                  }}
+                  content={interactiveModeContent}
+                />
+              ) : null
             )}
           </div>
         ) : selectedCapstone ? (

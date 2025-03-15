@@ -4,8 +4,9 @@ import { z } from "zod";
 import type { VideoResource } from "./serpapi"
 
 export interface Topic {
+  id: string;
   title: string;
-  description: string;
+  description?: string;
   searchQuery: string;
   isCompleted?: boolean;
   resources?: VideoResource[];
