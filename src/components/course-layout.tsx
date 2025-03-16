@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ChevronLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,28 @@ export default function CourseLayout() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
   const [selectedTopic, setSelectedTopic] = useState<TopicWithResources | null>(null)
   const [selectedCapstone, setSelectedCapstone] = useState<CapstoneProject | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Check if we're on mobile on initial render and when window resizes
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+      
+      // Auto-close sidebar on initial load if mobile
+      if (window.innerWidth < 1024 && sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    };
+    
+    // Check on mount
+    checkIfMobile();
+    
+    // Add event listener for resize
+    window.addEventListener('resize', checkIfMobile);
+    
+    // Clean up
+    return () => window.removeEventListener('resize', checkIfMobile);
+  }, [sidebarOpen]);
 
   const handleCourseDeselect = () => {
     setSelectedCourse(null)
@@ -31,6 +53,17 @@ export default function CourseLayout() {
   const handleCapstoneClick = (capstone: CapstoneProject) => {
     setSelectedTopic(null)
     setSelectedCapstone(capstone)
+    // Also collapse sidebar on capstone click on mobile
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }
+  
+  // New handler for topic selection that also collapses the sidebar
+  const handleTopicClick = (topic: TopicWithResources) => {
+    setSelectedTopic(topic);
+    // Automatically collapse the sidebar when a topic is selected
+    setSidebarOpen(false);
   }
 
   return (
@@ -50,7 +83,7 @@ export default function CourseLayout() {
               onSectionClick={setActiveSection}
               selectedCourse={selectedCourse}
               onCourseDeselect={handleCourseDeselect}
-              onTopicClick={setSelectedTopic}
+              onTopicClick={handleTopicClick}
               onCapstoneClick={handleCapstoneClick}
             />
           </div>

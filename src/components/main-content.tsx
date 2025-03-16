@@ -33,6 +33,10 @@ import { CaseStudyModal } from "@/components/ui/case-study-modal"
 import { toast } from "sonner"
 import { collection, query, where, getDocs, addDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase/firebase"
+import { FloatingActionMenu } from '@/components/ui/floating-action-menu';
+import { StickyNotesContainer, StickyNotesContainerRef, TopicNote } from '@/components/ui/sticky-notes-container';
+import { TopicNotesSection } from '@/components/ui/topic-notes-section';
+import { getTopicNotes, saveNote, updateNote, deleteNote } from "@/lib/firebase/noteUtils"
 
 const courseSuggestions = [
   {
@@ -275,6 +279,10 @@ export default function MainContent({
   const [isLoadingInteractiveMode, setIsLoadingInteractiveMode] = useState(false)
   const [interactiveModeContent, setInteractiveModeContent] = useState<InteractiveModeContent | null>(null)
   const [showInteractiveMode, setShowInteractiveMode] = useState(false)
+  const [isFloatingMenuOpen, setIsFloatingMenuOpen] = useState(false);
+  const [showStickyNotes, setShowStickyNotes] = useState(false);
+  const stickyNotesContainerRef = useRef<StickyNotesContainerRef>(null);
+  const [topicNotes, setTopicNotes] = useState<Record<string, TopicNote[]>>({});
 
   // Monitor authentication state
   useEffect(() => {
@@ -374,6 +382,165 @@ export default function MainContent({
       });
     };
   }, [questionAudioElements]);
+
+  // Load notes from Firebase when a topic is selected
+  useEffect(() => {
+    const loadTopicNotes = async () => {
+      if (!selectedTopic || !selectedCourse) return;
+      
+      const user = auth.currentUser;
+      if (!user) return;
+      
+      const topicId = getCurrentTopicId();
+      const notes = await getTopicNotes(user.uid, selectedCourse.id, topicId);
+      
+      if (notes.length > 0) {
+        setTopicNotes(prev => ({
+          ...prev,
+          [topicId]: notes
+        }));
+      }
+    };
+    
+    loadTopicNotes();
+  }, [selectedTopic, selectedCourse]);
+
+  // Save topic notes to localStorage when they change
+  useEffect(() => {
+    try {
+      // Only save to localStorage if we have notes
+      if (Object.keys(topicNotes).length > 0) {
+        localStorage.setItem('topicNotes', JSON.stringify(topicNotes));
+      }
+    } catch (error) {
+      console.error('Failed to save topic notes to localStorage:', error);
+    }
+  }, [topicNotes]);
+
+  // Load topic notes from localStorage on initial mount (as a fallback)
+  useEffect(() => {
+    try {
+      const savedNotes = localStorage.getItem('topicNotes');
+      if (savedNotes) {
+        setTopicNotes(prev => {
+          // Merge with any existing notes
+          const localNotes = JSON.parse(savedNotes);
+          return { ...localNotes, ...prev };
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load topic notes from localStorage:', error);
+    }
+  }, []);
+
+  // Function to save a note to a specific topic
+  const saveNoteToTopic = (topicId: string, note: TopicNote) => {
+    // Update local state first for immediate UI feedback
+    setTopicNotes(prev => {
+      const topicNotesList = prev[topicId] || [];
+      return {
+        ...prev,
+        [topicId]: [...topicNotesList, note]
+      };
+    });
+    
+    // Then save to Firebase
+    const user = auth.currentUser;
+    if (user && selectedCourse) {
+      saveNote(user.uid, selectedCourse.id, topicId, note)
+        .then(result => {
+          if (!result.success) {
+            toast.error('Failed to save note to cloud', {
+              description: 'Your note is saved locally but may not sync across devices.'
+            });
+          } else if (result.firebaseId) {
+            // Update the note in local state with the Firebase ID
+            setTopicNotes(prev => {
+              const topicNotesList = prev[topicId] || [];
+              return {
+                ...prev,
+                [topicId]: topicNotesList.map(n => 
+                  n.id === note.id 
+                    ? { ...n, id: result.firebaseId as string, clientId: note.id } 
+                    : n
+                )
+              };
+            });
+            
+            // Update localStorage with the new ID mapping
+            try {
+              const idMappings = JSON.parse(localStorage.getItem('noteIdMappings') || '{}');
+              idMappings[note.id] = result.firebaseId;
+              localStorage.setItem('noteIdMappings', JSON.stringify(idMappings));
+            } catch (error) {
+              console.error('Failed to save ID mapping to localStorage:', error);
+            }
+          }
+        });
+    } else {
+      console.warn('User not authenticated or course not selected, note saved only locally');
+    }
+    
+    // Show a toast notification
+    // toast.success('Note saved', {
+    //   description: 'Your note has been saved to the topic notes section.',
+    //   duration: 3000
+    // });
+  };
+  
+  // Update the deleteNoteFromTopic function to use Firebase
+  const deleteNoteFromTopic = (topicId: string, noteId: string) => {
+    // Get the note before deleting it from state
+    const noteToDelete = (topicNotes[topicId] || []).find(note => note.id === noteId);
+    
+    if (!noteToDelete) {
+      console.warn(`Note with ID ${noteId} not found in topic ${topicId}`);
+      return;
+    }
+    
+    // Update local state first for immediate UI feedback
+    setTopicNotes(prev => {
+      const topicNotesList = prev[topicId] || [];
+      return {
+        ...prev,
+        [topicId]: topicNotesList.filter(note => note.id !== noteId)
+      };
+    });
+    
+    // Then delete from Firebase
+    const user = auth.currentUser;
+    if (user) {
+      // The noteId should already be the Firebase document ID
+      deleteNote(user.uid, noteId)
+        .then(success => {
+          if (!success) {
+            toast.error('Failed to delete note from cloud', {
+              description: 'Your note is deleted locally but may still appear on other devices.'
+            });
+          }
+        });
+    } else {
+      console.warn('User not authenticated, note deleted only locally');
+    }
+    
+    // Show a toast notification
+    // toast.success('Note deleted', {
+    //   description: 'The note has been removed from the topic notes section.',
+    //   duration: 3000
+    // });
+  };
+
+  // Function to get the current topic ID
+  const getCurrentTopicId = (): string => {
+    if (!selectedTopic) return '';
+    return `topic-${selectedTopic.title.replace(/\s+/g, '-').toLowerCase()}`;
+  };
+
+  // Get notes for the current topic
+  const getCurrentTopicNotes = (): TopicNote[] => {
+    const topicId = getCurrentTopicId();
+    return topicNotes[topicId] || [];
+  };
 
   const handleInitialSubmit = async () => {
     console.log("Triggering initial syllabus generation");
@@ -1376,6 +1543,98 @@ export default function MainContent({
     }
   }
 
+  // Update the sticky notes handling code
+  const handleStickyNoteClick = () => {
+    // First set the state to show sticky notes
+    setShowStickyNotes(true);
+    setIsFloatingMenuOpen(false);
+    
+    // Add a longer delay to ensure the container is mounted and ready
+    setTimeout(() => {
+      try {
+        if (stickyNotesContainerRef.current) {
+          stickyNotesContainerRef.current.addNote();
+          
+          // Make sure the sticky notes remain visible even after saving
+          // This ensures the container doesn't disappear when all notes are saved
+          if (!showStickyNotes) {
+            setShowStickyNotes(true);
+          }
+        } else {
+          console.warn('Sticky notes container ref is not available');
+          // Try again after a short delay
+          setTimeout(() => {
+            if (stickyNotesContainerRef.current) {
+              stickyNotesContainerRef.current.addNote();
+            } else {
+              console.error('Sticky notes container ref still not available after retry');
+            }
+          }, 200);
+        }
+      } catch (error) {
+        console.error('Error adding sticky note:', error);
+      }
+    }, 150);
+  };
+
+  // Add a function to handle opening an existing note
+  const handleOpenNote = (note: TopicNote) => {
+    if (stickyNotesContainerRef.current) {
+      // Show the sticky notes container
+      setShowStickyNotes(true);
+      
+      // Open the existing note
+      stickyNotesContainerRef.current.openExistingNote(note);
+    }
+  };
+
+  // Update the updateNoteInTopic function to use Firebase
+  const updateNoteInTopic = (topicId: string, noteId: string, content: string) => {
+    // Check if the note exists before updating
+    setTopicNotes(prev => {
+      const topicNotesList = prev[topicId] || [];
+      
+      // Check if the note exists before updating
+      const noteExists = topicNotesList.some(note => note.id === noteId);
+      
+      if (!noteExists) {
+        console.warn(`Note with ID ${noteId} not found in topic ${topicId}`);
+        return prev;
+      }
+      
+      return {
+        ...prev,
+        [topicId]: topicNotesList.map(note => 
+          note.id === noteId 
+            ? { ...note, content, createdAt: new Date() } 
+            : note
+        )
+      };
+    });
+    
+    // Then update in Firebase
+    const user = auth.currentUser;
+    if (user) {
+      // The noteId should already be the Firebase document ID
+      updateNote(user.uid, noteId, content)
+        .then(success => {
+          if (!success) {
+            toast.error('Failed to update note in cloud', {
+              description: 'Your note is updated locally but may not sync across devices.'
+            });
+          }
+        });
+    } else {
+      console.warn('User not authenticated, note updated only locally');
+    }
+    
+    // Show a toast notification
+    // toast.success('Note updated', {
+    //   description: 'Your changes have been saved to the topic notes section.',
+    //   duration: 3000
+    // });
+  };
+
   if (selectedCourse) {
     return (
       <div className="h-full p-8 overflow-y-auto">
@@ -1393,6 +1652,15 @@ export default function MainContent({
                 {isGeneratingQuiz ? "Generating Quiz..." : "Test Yourself"}
               </Button>
             </div>
+            
+            {/* Topic Notes Section */}
+            <TopicNotesSection 
+              topicId={getCurrentTopicId()}
+              notes={getCurrentTopicNotes()}
+              onDeleteNote={deleteNoteFromTopic}
+              onOpenNote={handleOpenNote}
+            />
+            
             {selectedTopic.description && (
               <p className="text-muted-foreground mb-8">{selectedTopic.description}</p>
             )}
@@ -1411,7 +1679,7 @@ export default function MainContent({
             {selectedTopic.questions && selectedTopic.questions.length > 0 && (
               <div className="mt-8 mb-12">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-primary">Byte sized learning</h2>
+                  <h2 className="text-xl font-semibold text-primary">Bite sized learning</h2>
                   <div className="text-sm text-primary/60">
                     Question {currentQuestionIndex + 1} of {selectedTopic.questions.length}
                   </div>
@@ -1721,31 +1989,47 @@ export default function MainContent({
               </div>
             )}
 
-            {/* Floating button to open CourseCanvas */}
+            {/* Floating button with menu */}
             <div className="fixed bottom-4 right-4 z-50">
-              <Button
-                onClick={() => setIsCourseCanvasOpen(true)}
-                size="icon"
-                className="h-14 w-14 rounded-full shadow-lg bg-gradient-to-br from-primary/90 to-primary hover:from-primary hover:to-primary/90 transition-all duration-300 group relative"
-                title="Oyster Canvas"
-              >
-                <div className="relative w-10 h-10">
-                  {/* Oyster shell design */}
-                  <div className="absolute inset-0 bg-primary-foreground/20 rounded-full transform -rotate-45">
-                    <div className="absolute inset-1 bg-gradient-to-br from-primary-foreground to-primary-foreground/80 rounded-full">
-                      {/* Pearl */}
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-lg" />
+              <div className="relative">
+                {/* Floating Action Menu */}
+                <FloatingActionMenu 
+                  isOpen={isFloatingMenuOpen}
+                  onStickyNoteClick={handleStickyNoteClick}
+                  onCanvasClick={() => {
+                    setIsCourseCanvasOpen(true);
+                    setIsFloatingMenuOpen(false);
+                  }}
+                />
+                
+                {/* Main Floating Button */}
+                <Button
+                  onClick={() => setIsFloatingMenuOpen(!isFloatingMenuOpen)}
+                  size="icon"
+                  className="h-14 w-14 rounded-full shadow-lg bg-gradient-to-br from-primary/90 to-primary hover:from-primary hover:to-primary/90 transition-all duration-300 group relative"
+                  title="Oyster Tools"
+                >
+                  <div className="relative w-10 h-10">
+                    {/* Oyster shell design */}
+                    <div className="absolute inset-0 bg-primary-foreground/20 rounded-full transform -rotate-45">
+                      <div className="absolute inset-1 bg-gradient-to-br from-primary-foreground to-primary-foreground/80 rounded-full">
+                        {/* Pearl */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-lg" />
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Tooltip - repositioned to be centered above the button with text on two lines */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-black/80 text-white px-3 py-1.5 rounded-md text-sm text-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                  <div>Oyster</div>
-                  <div>Canvas</div>
-                </div>
-              </Button>
+                </Button>
+              </div>
             </div>
+
+            {/* Sticky Notes Container - updated with topic ID and save/update handlers */}
+            <StickyNotesContainer 
+              isVisible={showStickyNotes} 
+              ref={stickyNotesContainerRef}
+              currentTopicId={getCurrentTopicId()}
+              onSaveNote={saveNoteToTopic}
+              onUpdateNote={updateNoteInTopic}
+            />
 
             {/* CourseCanvas Component */}
             <CourseCanvas 
